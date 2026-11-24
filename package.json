@@ -1,0 +1,31 @@
+{
+  "name": "commerza-web-api",
+  "version": "1.0.0",
+  "description": "Commerza Web API - Express/Node.js port of the legacy ClusterOfferAPI (ASP.NET Web API)",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "check": "node scripts/check-routes.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "UNLICENSED",
+  "private": true,
+  "dependencies": {
+    "axios": "^1.21.1",
+    "compression": "^1.8.2",
+    "cors": "^2.8.6",
+    "dotenv": "^18.0.10",
+    "express": "^5.3.0",
+    "express-rate-limit": "^8.7.5",
+    "helmet": "^8.3.0",
+    "jsonwebtoken": "^9.0.3",
+    "morgan": "^1.12.1",
+    "multer": "^2.5.0",
+    "nodemailer": "^10.6.1",
+    "pg": "^8.23.1",
+    "razorpay": "^2.9.8"
+  }
+}

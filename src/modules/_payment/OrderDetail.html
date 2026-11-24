@@ -1,0 +1,119 @@
+﻿<!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Transitional//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd'>
+<html xmlns='http://www.w3.org/1999/xhtml'>
+
+<head>
+<meta http-equiv='Content-Type' content='text/html; charset=utf-8' />
+<title>Order Summary</title>
+</head>
+<body>
+<table width='700' style=' margin: 0px auto; padding: 20px;'>
+  <tr>
+    <td><table cellpadding='0' cellspacing='0' style='background: #fff; border: 1px solid #848484;
+                    color: #333; font-family: Arial,Helvetica,sans-serif; border-radius: 5px;
+                    width: 100%;'>
+        <tr>
+          <td><table width='100%' style='background: #000000; border-bottom: 2px solid #ff3366;
+                                border-radius: 3px 3px 0 0'>
+              <tr>
+                <td style='width: 200px; height: 70px;'><a href='$$CompanyDomain$$' target='_blank'>
+                                                            <img src='$$CompanyresellerDomain$$/Company_Logo/$$logo$$' style='height: 70px; width: 150px; border:0px; ' /></a></td>
+                <td style='text-align: right; font-size: 15px; padding-right: 15px; color: #fff;
+                                            font-family: Arial,Helvetica,sans-serif; width: 250px;'>$$date$$ </td>
+              </tr>
+            </table></td>
+        </tr>
+        <tr>
+          <td><div>
+              <div class='clear'></div>
+              <table style='border-top: 1px solid rgb(204, 204, 204); height: auto; padding-bottom: 0px;
+                                        padding-left: 10px; padding-right: 10px; padding-top: 6px; width:100%;'>
+                <tr>
+                  <td><h1 style='font-size: 18px; font-family: arial; font-weight: normal; margin: 15px 0px 15px;
+                                                    color: #3f3f42; text-decoration: none;'>Dear<span style='color: #3b7bd1;'> $$Name$$, </span></h1>
+                    <br /></td>
+                </tr>
+                <tr>
+                  <td style="font-size: 14px; font-family: Arial; font-weight: normal; margin: 15px 0px 7px 15px;
+                                    color: #3f3f42;"><p>Thank you for your order!</p></td>
+                </tr>
+               <!-- <tr>
+                  <td style="font-size: 14px; font-family: Arial; font-weight: normal; margin: 15px 0px 7px 15px;
+                                    color: #3f3f42;">We will send you another email once the items in your order have been shipped. Meanwhile, you can check the status of your order on jewria.com<br /></td>
+                </tr>-->
+                <tr>
+                  <td><p style="font-size: 14px; font-family: Arial; font-weight: normal;
+                                    color: #3f3f42;">Please find below, the summary of your order. </p></td>
+                </tr>
+                <tr>
+                  <td>
+                  <table width='100%' border='0' style='font-size:14px;'>
+                      <tbody>
+                           <thead>
+                               
+                               <tr>
+                                <td width='25%' colspan='2'><p style='font-size:11px; color:#000; font-weight:600; border:1px solid #dddddd; padding: 8px 10px; background:#f2f2f2'>Product</p></td>
+                                <td width='15%'><p style='font-size:11px; color:#000; font-weight:600; border:1px solid #dddddd; padding: 8px 10px; background:#f2f2f2'>Item Price</p>
+                                  </td>
+                                <td width='10%'><p style='font-size:11px; color:#000; font-weight:600; border:1px solid #dddddd; padding: 8px 10px; background:#f2f2f2'>Qty</p>
+                                  </td>
+                                <td width='22%'><p style='font-size:11px; color:#000; font-weight:600; border:1px solid #dddddd; padding: 8px 10px; background:#f2f2f2'>Ship. Charges</p>
+                                  </td>
+                                <td width='19%'><p style='font-size:11px; color:#000; font-weight:600; border:1px solid #dddddd; padding: 8px 10px; background:#f2f2f2'>Gst. Charges</p>
+                                 </td>
+                                <td width='10%'><p style='font-size:11px; color:#000; font-weight:600; border:1px solid #dddddd; padding: 8px 10px; background:#f2f2f2'>Subtotal</p>
+                                  </td>
+                                    <td width='10%'><p style='font-size:11px; color:#000; font-weight:600; border:1px solid #dddddd; padding: 8px 10px; background:#f2f2f2'>BV</p>
+                                  </td>
+                                    <td width='10%'><p style='font-size:11px; color:#000; font-weight:600; border:1px solid #dddddd; padding: 8px 10px; background:#f2f2f2'>Cashback</p>
+                                  </td>
+                              </tr>
+                           </thead>
+                      <tbody>
+                          $$customTr$$
+                      </tbody>
+                          <tfoot>
+                              <tr><td colspan='7'>
+                                <p style="border-top: 1px solid rgb(228, 228, 228); border-bottom: 1px solid rgb(228, 228, 228); padding-bottom: 3px; padding-top: 3px; line-height: 22px; height: 22px !important;"> 
+                                <span style='float:right'><strong>Total Amount :</strong> $$TotalProudctAmount$$ </span>
+                                </p>
+                                </td>
+                                  <td colspan='7'>
+                                <p style="border-top: 1px solid rgb(228, 228, 228); border-bottom: 1px solid rgb(228, 228, 228); padding-bottom: 3px; padding-top: 3px; line-height: 22px; height: 22px !important;"> 
+                                <span style='float:right'><strong>Total BV :</strong> $$TotalProudctBV$$ </span>
+                                </p>
+                                </td>
+                                  <td colspan='7'>
+                                <p style="border-top: 1px solid rgb(228, 228, 228); border-bottom: 1px solid rgb(228, 228, 228); padding-bottom: 3px; padding-top: 3px; line-height: 22px; height: 22px !important;"> 
+                                <span style='float:right'><strong>Total Cashback :</strong> $$TotalProudctPV$$ </span>
+                                </p>
+                                </td>
+                             </tr>
+                          </tfoot>
+                    </table>
+                  </td>
+                </tr>
+
+                
+                <tr>
+                  <td><p>DELIVERY ADDRESS</p>
+                    <p><strong>$$Name$$</strong> ( $$Mobile$$)</p>
+                    <p style='font-size:14px; color:#3f3f42;'>$$Address$$<br />
+                      $$City$$ - $$PinCode$$<br />
+                    </p></td>
+                </tr>
+              </table>
+              <div class='clear'></div>
+              <div class='clear'></div>
+              <p style='font-size: 14px; font-family: Arial; font-weight: normal; margin: 15px 0px 7px 15px;
+                                    color: #3f3f42;'> For any questions, please contact us on $$CompanySupportEmailID$$ </p>
+              <!--<p> <strong style='font-size: 14px; font-family: Arial; font-weight: normal; margin: 0px 0 0 15px;
+                                    color: #131313;'>You can contact  us on info@jewria.com</strong></p>-->
+              <br />
+              <div style='clear: both'></div>
+            </div></td>
+        </tr>
+      </table></td>
+  </tr>
+</table>
+</body>
+</html>

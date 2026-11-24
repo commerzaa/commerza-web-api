@@ -1,0 +1,667 @@
+[
+  {
+    "url": "merchant/order-List",
+    "controller": "Order_List",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/order-List/Order-Details/{OrderID}",
+    "controller": "Order_List",
+    "action": "OrderDetails"
+  },
+  {
+    "url": "merchant/support-request/{Ticketid}",
+    "controller": "SupportRequest",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/order-List/Invoice/{OrderID}",
+    "controller": "Order_List",
+    "action": "InvoiceDetail"
+  },
+  {
+    "url": "merchant/_plus_PD58cNACXK9I9p4KO3psA==/{orderID}",
+    "controller": "OrderComplete",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/my-profile",
+    "controller": "My_Profile",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/Security",
+    "controller": "Security",
+    "action": "Index"
+  },
+  {
+    "url": "referral/my-profile/{profile_type}",
+    "controller": "My_Profile",
+    "action": "ReferralIndex"
+  },
+  {
+    "url": "merchant/billing-info",
+    "controller": "BillingDetails",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/workinghours",
+    "controller": "WorkingHours",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/serviceshighlights",
+    "controller": "ServicesHighlights",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/map-locations",
+    "controller": "MapLocations",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/paymentmethods",
+    "controller": "PaymentMethods",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/JitDVZY_plus_Ju1YaAP4_slash_Un6_slash_5zYWYRmdC1h",
+    "controller": "Payment_overview",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/Stock-Management",
+    "controller": "Stock_Management",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/yk_slash_p_plus_o_slash_M2zTNDa2QYasEKQ==",
+    "controller": "Pervious_Payments",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/videogallery",
+    "controller": "VideoGallery",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/z8tZG_slash_e_slash_RKYsf_slash_m8EkQv95zYWYRmdC1h",
+    "controller": "Merchant_Invoice_List",
+    "action": "Index"
+  },
+  {
+    "url": "secure-payment-gateway/package-payment-success",
+    "controller": "OnlineMerchantPackageResponse",
+    "action": "PaymentSuccess"
+  },
+  {
+    "url": "secure-payment-gateway/package-payment-failed",
+    "controller": "OnlineMerchantPackageResponse",
+    "action": "PaymentFailed"
+  },
+  {
+    "url": "secure-payment-gateway/package-payment-inprocess",
+    "controller": "OnlineMerchantPackageResponse",
+    "action": "PaymentInProcess"
+  },
+  {
+    "url": "secure-payment-gateway/package-payment-cancel",
+    "controller": "OnlineMerchantPackageResponse",
+    "action": "PaymentCancel"
+  },
+  {
+    "url": "merchant/z8tZG_slash_e89897_slash_RKYsf_slash_m8EkQv95zYWYRmdC1h",
+    "controller": "ReferalMerchant",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/z8tZG_slash_e89897_slash_RKYstyutyuf_slash_m8EkQv95zYWYRmdC1h",
+    "controller": "ActiveReferalMerchant",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/z8tZG_slash_e89897_slash_RKYsf_kjkjhbslash_m8EkQv95zYWYRmdC1h",
+    "controller": "MyPackages",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/z8tZG_slash_e89897_slash_RKYsf_kjkjhbslash_kjk787876m8EkQv95zYWYRmdC1h",
+    "controller": "MyPackagesPurchase",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/z8tZG_slash_e89897_slash_RKYsf_kjkjhbslash_kjk787876mYWYRmdC1h",
+    "controller": "REFERALCOMMISSION",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/B2O18mbSW3C9ZPt9rWVOsQ==",
+    "controller": "Credit_Note",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/brFU_plus_BhR02IRwyLuOp8fsBBOvx0WDpUF",
+    "controller": "Order_Transaction",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/cp-request-list",
+    "controller": "CP_Request_List",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/added-item-list",
+    "controller": "Added_Item_List",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/add-item",
+    "controller": "Add_Item",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/NIBR9XC862_plus_C_plus_65HltrZMK7aFNhG6yqL",
+    "controller": "Settlement_Report",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/Etk9W_plus_mFOp_slash_vJJrG69BwLw==",
+    "controller": "Payout_Summary",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/jmeuLNssuUvwL_plus_dMRgACbJzYWYRmdC1h",
+    "controller": "Wallet_Statement",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/eXHfArQbbgPOMseGCTvwBXmvgKKKEr0L",
+    "controller": "Statement_Summary",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/XTESlv_plus_Xvk39TV9lhO_plus_CLw==",
+    "controller": "Settlements",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/paidlisting",
+    "controller": "PaidListing",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/Product-Uploaded-list",
+    "controller": "ProductUploadlist",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/manage-product",
+    "controller": "Manage_Products",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/add-Agreement",
+    "controller": "Agreement",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/Bulk-Listing",
+    "controller": "Bulk_Listing",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/Single-Listing",
+    "controller": "Product_List_Single",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/AllProductlist",
+    "controller": "AllProductlist",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/cp-request",
+    "controller": "Cp_Request",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/credit-fund-management",
+    "controller": "Credit_Fund",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/getcp-requestqr",
+    "controller": "getcp_request",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/cp-point-history",
+    "controller": "CPPoint_History",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/cp-point-statement",
+    "controller": "CPPoint_Statement",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/enquiry-statement",
+    "controller": "Enquiry_Statement",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/getcp-Requestlist",
+    "controller": "CP_RequestList",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/HT9e1iMr3ka7VZLPOcRz0w==",
+    "controller": "Cancel_Order",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/lnEC2DwyRYPrbcFYdW4peA==",
+    "controller": "Return_Order",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/hKVljVjI8d8CVPhknYX_plus_CQ==",
+    "controller": "Active_Order",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/O0obeCTpYiNBlRDMchzx8A==",
+    "controller": "OrderInvoice",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/1ah_plus_8ZlvFs6vFIZAF9aQiQ==",
+    "controller": "Courierchallan",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/my-notifications",
+    "controller": "notifications",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/x94grbKbzigOLdoMlJxHOw==",
+    "controller": "pack_order",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/GOjhT8qZ8GbRQj3kECcLlA==",
+    "controller": "intransit_order",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/7ZQB7Y7P0XuTRNdZAO7LlQ==",
+    "controller": "handover_order",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/_plus_O8iwOz_slash_ZX7rbcFYdW4peA==",
+    "controller": "pending_order",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/gHGYgxwkVGWFDKPhgbUthA==",
+    "controller": "completed_order",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/approved-product",
+    "controller": "ApprovedproductList",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/Archive-productList",
+    "controller": "ReadyproductList",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/unapproved-product",
+    "controller": "UnpprovedproductList",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/Rejected-product",
+    "controller": "RejectedproductList",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/Stock-AvailableList",
+    "controller": "Stock_AvailableList",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/businesskyc",
+    "controller": "Business_KYC",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/BankDetails",
+    "controller": "Bank_Details",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/photogallery",
+    "controller": "PhotoGallery",
+    "action": "Index"
+  },
+  {
+    "url": "referral/my-profile",
+    "controller": "My_Profile",
+    "action": "ReferralIndex"
+  },
+  {
+    "url": "customer/my-profile",
+    "controller": "My_Profile",
+    "action": "CustomerIndex"
+  },
+  {
+    "url": "merchant/product-upload-image/{MAINCATID}/{CATID}/{SUBCATID}",
+    "controller": "Product_Upload_Image",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/product-uploaded-History/{GROUPID}",
+    "controller": "Product_Upload_Images",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/add-product",
+    "controller": "Add_Product",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/add-product/{PrId}/{SubPr}",
+    "controller": "add_product",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/4Fa3dgSBxiyu2hTYRusqiw==",
+    "controller": "AddTicket",
+    "action": "Index"
+  },
+  {
+    "url": "referral/addticket",
+    "controller": "AddTicket",
+    "action": "ReferralIndex"
+  },
+  {
+    "url": "customer/addticket",
+    "controller": "AddTicket",
+    "action": "CustomerIndex"
+  },
+  {
+    "url": "merchant/bulkupload",
+    "controller": "BulkUpload",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/bulkuploadhistory",
+    "controller": "BulkUploadHistory",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/subscribe-us",
+    "controller": "SubscribeUs",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/subscription-history",
+    "controller": "SubscriptionHistory",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/dashBoard",
+    "controller": "CustomerDashBoard",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/freebusinesskeywords",
+    "controller": "FreeBusinessKeywords",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/logout",
+    "controller": "visitor_signup",
+    "action": "Logoutmerchant"
+  },
+  {
+    "url": "merchant-login",
+    "controller": "visitor_signup",
+    "action": "visitor_login"
+  },
+  {
+    "url": "Login-as-member",
+    "controller": "Login_as_member",
+    "action": "Index"
+  },
+  {
+    "url": "merchant-signup/{Source}/{ReferralId}",
+    "controller": "visitor_signup",
+    "action": "Index"
+  },
+  {
+    "url": "advertise-sell",
+    "controller": "OuterPages",
+    "action": "AdvertiseSell"
+  },
+  {
+    "url": "advertise-pricing",
+    "controller": "Pricing",
+    "action": "index"
+  },
+  {
+    "url": "Mobile-advertise-pricing",
+    "controller": "Link_ForAnroid",
+    "action": "Pricing_ForAnroid"
+  },
+  {
+    "url": "merchant/dashboard-Mobile",
+    "controller": "Link_ForAnroid",
+    "action": "dashboard_ForAnroid"
+  },
+  {
+    "url": "merchant/Listing-Mobile",
+    "controller": "Link_ForAnroid",
+    "action": "Listing_ForAnroid"
+  },
+  {
+    "url": "merchant/Agreement-Mobile",
+    "controller": "Link_ForAnroid",
+    "action": "Agreement_ForAnroid"
+  },
+  {
+    "url": "termofuse-ForAnroid",
+    "controller": "Link_ForAnroid",
+    "action": "termofuse_Payment_ForAnroid"
+  },
+  {
+    "url": "merchant/ZclNP0XpNfjuC_plus_mwQ2bBXw==",
+    "controller": "AllTickets",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/sendsmsviaselfaccount",
+    "controller": "SendSmsViaSelfAccount",
+    "action": "Index"
+  },
+  {
+    "url": "advertise-benefits",
+    "controller": "OuterPages",
+    "action": "Benefites"
+  },
+  {
+    "url": "Mobile-advertise-benefits",
+    "controller": "Link_ForAnroid",
+    "action": "Benefites_ForAnroid"
+  },
+  {
+    "url": "faq",
+    "controller": "OuterPages",
+    "action": "FAQ"
+  },
+  {
+    "url": "terms-and-conditions",
+    "controller": "OuterPages",
+    "action": "TermAndConditions"
+  },
+  {
+    "url": "Mobile-faq",
+    "controller": "Link_ForAnroid",
+    "action": "FAQ_ForAnroid"
+  },
+  {
+    "url": "merchant/sentsmshistory",
+    "controller": "SentSmsHistory",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/all-mobilelist",
+    "controller": "AllMobileList",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/smsapi-settings",
+    "controller": "Sms_ApiSetting",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/sendemailviaselfaccount",
+    "controller": "SendEmailViaSelfAccount",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/all-emailslist/{TMCEMID}",
+    "controller": "AllEmailsList",
+    "action": "UPDATE"
+  },
+  {
+    "url": "merchant/sentemailhistory",
+    "controller": "SentEmailHistory",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/api-settings",
+    "controller": "APISettings",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/Enquiry-List",
+    "controller": "LeadGenerator",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/add-campaign",
+    "controller": "AddCampaign",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/campaign-list",
+    "controller": "CampaignList",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/statistical-report",
+    "controller": "StatisticalReport",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/Sales-Report",
+    "controller": "Merchant_Sale_Reports",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/transactions",
+    "controller": "Branch_Ladger",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/product-invoices",
+    "controller": "Merchant_Invoice_List",
+    "action": "Index"
+  },
+  {
+    "url": "Regisrtration-Confirmation/{action}",
+    "controller": "VisitorConfirmation",
+    "action": "Index"
+  },
+  {
+    "url": "outer-business-kyc",
+    "controller": "OuterBusiness_KYC",
+    "action": "Index"
+  },
+  {
+    "url": "outer-business-keywords",
+    "controller": "OuterBusinessKeywords",
+    "action": "Index"
+  },
+  {
+    "url": "outer-business-listing",
+    "controller": "OuterFreeBusinessKeywords",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/Payout-Report",
+    "controller": "MerchantPayoutReport",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/my-category",
+    "controller": "OuterBusinessKeywords",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/download-template",
+    "controller": "Merchant_DownloadTemplate",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/UploadImage",
+    "controller": "Merchant_UploadBulkImages",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/verify-non-live",
+    "controller": "QCUploadBulkProduct",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/non-live",
+    "controller": "Merchant_NonLiveProduct",
+    "action": "Index"
+  },
+  {
+    "url": "Reset-Password/{loginid}/{RandomNumber}",
+    "controller": "Forgot_Password",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/bulkupload",
+    "controller": "Merchant_UploadBulkProduct",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/commission-chart",
+    "controller": "MerchantCommissionReport",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/commission-invoices",
+    "controller": "CommissionInvoices",
+    "action": "Index"
+  },
+  {
+    "url": "merchant/shipping-invoices",
+    "controller": "CommissionInvoices",
+    "action": "ShippingInvoices"
+  },
+  {
+    "url": "{controller}/{action}/{id}",
+    "controller": "Home",
+    "action": "Index"
+  }
+]

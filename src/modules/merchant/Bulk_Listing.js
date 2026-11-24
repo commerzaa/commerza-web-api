@@ -1,0 +1,75 @@
+'use strict';
+// Port of Merchant Panel Controllers/CustomerPanel/Bulk_Listing.cs (Db_Shopping => 'shopping')
+const express = require('express');
+const db = require('../../db');
+const { auth, requireType } = require('../../middleware/auth');
+const asyncHandler = require('../../middleware/asyncHandler');
+const { mapRows } = require('../../utils/shape');
+const UtilityClass = require('../../lib/merchant/UtilityClass');
+
+const router = express.Router();
+const guard = [auth, requireType('merchant')];
+const P = '/merchant/Bulk_Listing';
+const VM = ['ROWNUMBER', 'TUIELID', 'ActivityByUser', 'ActivityDate', 'ExcelFile', 'Status', 'ActivityByUserId', 'Companyname', 'TotalRecord', 'TotalerrorRecord', 'CategoryName', 'SubCategoryName', 'SubSubCategoryName', 'QCSTATUS', 'PENDINGSELLING', 'LISTINGCREATED', 'Requestid', 'SENDTOQC'];
+
+// auth
+// route-config: merchant/Bulk-Listing
+router.all([`${P}/Index{/:id}`, '/merchant/Bulk-Listing', '/merchant/merchant/Bulk-Listing'], ...guard, asyncHandler(async (req, res) => {
+  let { fromDate, toDate, page, FileName, ddlCategory, ddlSubCategory, ddlSubSubCategory } = req.p;
+  if (fromDate == null) fromDate = '';
+  if (toDate == null) toDate = '';
+  if (FileName == null) FileName = '';
+  ddlCategory = ddlCategory == null || ddlCategory === '' ? 0 : parseInt(ddlCategory, 10);
+  ddlSubCategory = ddlSubCategory == null || ddlSubCategory === '' ? 0 : parseInt(ddlSubCategory, 10);
+  ddlSubSubCategory = ddlSubSubCategory == null || ddlSubSubCategory === '' ? 0 : parseInt(ddlSubSubCategory, 10);
+  const ByUserId = Number(req.user.plid);
+  try {
+    const MaxRows = await UtilityClass.GridPageSize();
+    page = (page === undefined || page === null || page === '') ? 1 : parseInt(page, 10);
+    const data = await db.proc('shopping', 'usp_bulkuploadhistory_listing', {
+      Mode: '1', ID: '0', FROMDATE: fromDate, TODATE: toDate, Filename: '', ByUserId,
+      MAINCATID: ddlCategory, CATID: ddlSubCategory, SUBCATID: ddlSubSubCategory, StartRowIndex: page, MaxRows,
+    });
+    // PORT-NOTE: @TOTALCOUNT / @STRRESULT OUT read from the 'totalcount' column of the first row
+    const TotalRecord = data.length && data[0].totalcount != null ? parseInt(data[0].totalcount, 10) : 0;
+    const catid = await db.scalar('shopping', 'SELECT catid FROM portal_master WHERE plid = @plid LIMIT 1', { plid: String(ByUserId) });
+    const category = mapRows(await db.query('shopping',
+      `select pc.catid, pc.catname from product_category pc where pc.catactive = true and pc.catid::varchar(100) in (select unnest(string_to_array(@catid, ',')))`,
+      { catid: catid === null ? '' : String(catid) }), ['CATID', 'CATNAME']);
+    const subcategory = mapRows(await db.query('shopping', 'SELECT scatid, scatname FROM product_subcategory WHERE scatactive = true'), ['SCATID', 'SCATNAME']);
+    const subsubcategory = mapRows(await db.query('shopping',
+      `SELECT kmid, keywordname FROM keyword_master WHERE kactive = true and catid::varchar in (select unnest(string_to_array(@catid, ',')))`,
+      { catid: catid === null ? '' : String(catid) }), ['KMID', 'KEYWORDNAME']);
+    res.json({
+      Model: mapRows(data, VM), category, subcategory, subsubcategory,
+      catgory: ddlCategory, subcatgory: ddlSubCategory, subsubcatgory: ddlSubSubCategory,
+      CurrentPage: page, GridPageSize: MaxRows, TotalRecord, NoPerPage: await UtilityClass.GridNumbersPerPage(),
+      fromDate, toDate, FileName, ByUserId: String(ByUserId),
+    });
+  } catch (ex) {
+    console.error(ex.message);
+    res.json({ view: '~/Views/PageNotFound/Index.cshtml' }); // View("PageNotFound")
+  }
+}));
+
+// auth (legacy: public)
+router.all(`${P}/subcategorylist{/:id}`, ...guard, asyncHandler(async (req, res) => {
+  const catid = parseInt(req.p.catid, 10);
+  const rows = await db.query('shopping', 'SELECT scatid, scatname FROM product_subcategory WHERE scatactive = true and catid = @catid', { catid });
+  res.json(mapRows(rows, ['SCATID', 'SCATNAME']));
+}));
+
+// auth (legacy: public)
+router.all(`${P}/subsubcategorylist{/:id}`, ...guard, asyncHandler(async (req, res) => {
+  const SCATID = parseInt(req.p.SCATID, 10);
+  const rows = await db.query('shopping', 'SELECT kmid, keywordname FROM keyword_master WHERE kactive = true and scatid = @scatid', { scatid: SCATID });
+  res.json(mapRows(rows, ['KMID', 'KEYWORDNAME']));
+}));
+
+// auth (legacy: public)
+router.all(`${P}/sendtoqc{/:id}`, ...guard, asyncHandler(async (req, res) => {
+  await db.exec('shopping', 'update ims_subproduct_temp set ismerchantstatus = 4 where productentry = @e', { e: req.p.editSPRID });
+  res.json('ok');
+}));
+
+module.exports = router;

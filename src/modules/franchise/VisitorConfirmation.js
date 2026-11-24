@@ -1,0 +1,24 @@
+'use strict';
+// Ported from Franchise/Controllers/CustomerPanel/VisitorConfirmation.cs
+const express = require('express');
+const path = require('path');
+const router = express.Router();
+const asyncHandler = require('../../middleware/asyncHandler');
+const RegistrationConfirmation = require('../../lib/franchise/RegistrationConfirmation');
+
+// public (email verification link)
+router.all(['/franchise/VisitorConfirmation/Index{/:id}', '/franchise/VisitorConfirmation'], asyncHandler(async (req, res) => {
+  const emailid = req.p.emailid;
+  const vmid = req.p.vmid;
+  const PageUrl = req.protocol + '://' + req.get('host') + req.originalUrl;
+  const out = { Canonical: PageUrl, Title: '', MetaDesc: '', MetaKeyword: '', Message: '' };
+  if (emailid !== undefined && emailid !== null && emailid !== '' && vmid !== undefined && vmid !== null && vmid !== '') {
+    // Server.MapPath("visitor_confirm.html")
+    out.Message = await RegistrationConfirmation.Verification(String(req.query.vmid !== undefined ? req.query.vmid : vmid), String(req.query.emailid !== undefined ? req.query.emailid : emailid), path.resolve('visitor_confirm.html'));
+  } else {
+    out.Message = "Please Don't Play With URL !";
+  }
+  res.json(out);
+}));
+
+module.exports = router;

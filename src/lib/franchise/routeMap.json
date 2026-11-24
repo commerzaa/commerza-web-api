@@ -1,0 +1,707 @@
+[
+  {
+    "url": "franchisee/order-List",
+    "controller": "Order_List",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/Credit-Debitcard-statement",
+    "controller": "Credit_Debitcard_statement",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/Shopping-Wallet-Statement",
+    "controller": "Shopping_Wallet_Statement",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/NIBR9XC862_plus_C_plus_65HltrZMK7aFNhG6yqL",
+    "controller": "Settlement_Report",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/XTESlv_plus_Xvk39TV9lhO_plus_CLw==",
+    "controller": "Settlements",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/z8tZG_slash_e89897_slash_RKYsf_kjkjhbslash_kjk787876mYWYRmdC1h",
+    "controller": "REFERALCOMMISSION",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/All-Ticket",
+    "controller": "All_Ticket",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/commission-chart",
+    "controller": "MerchantCommissionReport",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/Wallet-Summary",
+    "controller": "TransferToBank",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/CashOnDelivery-Statement",
+    "controller": "CashOnDelivery_Statement",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/Post-API",
+    "controller": "PostAPI",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/Utilities-API",
+    "controller": "Utilities_API_Docs",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/Response-API",
+    "controller": "ResponseAPI",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/Utilities-Response-API",
+    "controller": "ResponseAPI",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/Coin-Wallet-Statement",
+    "controller": "Coin_Wallet_Statement",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/ShoppingandServices-Wallet",
+    "controller": "ShoppingandServices_Wallet",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/PayUMoney-Statement",
+    "controller": "PayUMoney_Statement",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/Commission-Wallet-Statements",
+    "controller": "Commission_Wallet_Statements",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/Utlities-Commission",
+    "controller": "Utilities_Commission",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/Product-Commission",
+    "controller": "Products_Commission",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/Enquiry-Report",
+    "controller": "EnquiryReport",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/EWALLET-Statement",
+    "controller": "EWALLET_Statement",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/order-List/Order-Details/{OrderID}",
+    "controller": "Order_List",
+    "action": "OrderDetails"
+  },
+  {
+    "url": "franchisee/support-request/{Ticketid}",
+    "controller": "SupportRequest",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/merchant-support-request/{Ticketid}",
+    "controller": "MerchantSupportRequest",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/order-List/Invoice/{OrderID}",
+    "controller": "Order_List",
+    "action": "InvoiceDetail"
+  },
+  {
+    "url": "franchisee/my-profile",
+    "controller": "My_Profile",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/company-profile",
+    "controller": "Company_Profile",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/Wallet-Setting",
+    "controller": "WalletSetting",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/Reseller-Statement",
+    "controller": "ResellerStatement",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/Commision-Statement",
+    "controller": "CommisionStatement",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/Commision-Tds-Report",
+    "controller": "ResellerTdsReport",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/Transfer-Report",
+    "controller": "TransferComission_Report",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/hKVljVjI8d8CVPhknYX_plus_CQ==",
+    "controller": "Active_Order",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/_plus_PD58cNACXK9I9p4KO3psA==/{orderID}",
+    "controller": "OrderComplete",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/Topup-List",
+    "controller": "Topup_List",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/x94grbKbzigOLdoMlJxHOw==",
+    "controller": "pack_order",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/O0obeCTpYiNBlRDMchzx8A==",
+    "controller": "OrderInvoice",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/1ah_plus_8ZlvFs6vFIZAF9aQiQ==",
+    "controller": "Courierchallan",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/GOjhT8qZ8GbRQj3kECcLlA==",
+    "controller": "intransit_order",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/7ZQB7Y7P0XuTRNdZAO7LlQ==",
+    "controller": "handover_order",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/_plus_O8iwOz_slash_ZX7rbcFYdW4peA==",
+    "controller": "pending_order",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/gHGYgxwkVGWFDKPhgbUthA==",
+    "controller": "completed_order",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/gHGYgxwkVGWFDKPhgbUthA==deals",
+    "controller": "completed_deals",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/lnEC2DwyRYPrbcFYdW4peA==",
+    "controller": "Return_Order",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/faq",
+    "controller": "OuterPages",
+    "action": "FAQ"
+  },
+  {
+    "url": "referral/my-profile/{profile_type}",
+    "controller": "My_Profile",
+    "action": "ReferralIndex"
+  },
+  {
+    "url": "franchisee/AllProductlist",
+    "controller": "AllProductlist",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/AllNdnlist",
+    "controller": "AllNdnList",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/unapproved-product",
+    "controller": "UnpprovedproductList",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/unapproved-ndn",
+    "controller": "UnpprovedndnList",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/QCFailed-Listing",
+    "controller": "QCFailed_List",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/QCFailed-Listing-ndn",
+    "controller": "QCFailed_ListNDN",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/commission-invoices",
+    "controller": "CommissionInvoices",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/hKVljVjI8d8CVPhknYX_plus_CQ==",
+    "controller": "Active_Order",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/hKVljVjI8d8CVPhknYX_plus_CQ==deals",
+    "controller": "Active_Deals",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/exchnagelnEC2DwyRYPrbcFYdW4peA==",
+    "controller": "Exchange_Order",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/HT9e1iMr3ka7VZLPOcRz0w==deals",
+    "controller": "Cancel_Deals",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/refundedlnEC2DwyRYPrbcFYdW4peA==",
+    "controller": "Refunded_Order",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/HT9e1iMr3ka7VZLPOcRz0w==",
+    "controller": "Cancel_Order",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/deliveryhKVljVjI8d8CVPhknYX_plus_CQ==",
+    "controller": "Delivery_Report",
+    "action": "Index"
+  },
+  {
+    "url": "referral/my-profile",
+    "controller": "My_Profile",
+    "action": "ReferralIndex"
+  },
+  {
+    "url": "customer/my-profile",
+    "controller": "My_Profile",
+    "action": "CustomerIndex"
+  },
+  {
+    "url": "franchisee/addticket",
+    "controller": "AddTicket",
+    "action": "Index"
+  },
+  {
+    "url": "referral/addticket",
+    "controller": "AddTicket",
+    "action": "ReferralIndex"
+  },
+  {
+    "url": "customer/addticket",
+    "controller": "AddTicket",
+    "action": "CustomerIndex"
+  },
+  {
+    "url": "franchisee/dashBoard",
+    "controller": "CustomerDashBoard",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/Released-BV",
+    "controller": "ReleasedBV",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/add-Agreement",
+    "controller": "Agreement",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/Paymode",
+    "controller": "Paymode",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/AmountTransaction",
+    "controller": "AmountTransaction",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/Send-Business-Info",
+    "controller": "SendBusinessInfo",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/Get-Info",
+    "controller": "CheckBalance",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/Customer-Bank-Transfer",
+    "controller": "Customer_Bank_Transfer",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/Customer-Bulk-Payout",
+    "controller": "Customer_bulk_payout",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/Customer-Manual-Payout",
+    "controller": "Customer_Manual_payout",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/z8tZG_slash_e_slash_RKYsf_slash_m8EkQv95zYWYRmdC1h",
+    "controller": "Merchant_Invoice_List",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/brFU_plus_BhR02IRwyLuOp8fsBBOvx0WDpUF",
+    "controller": "Order_Transaction",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/Customer-Rejected-Payout",
+    "controller": "Customer_Reject_payout",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/Payout-Report",
+    "controller": "Payout_Report",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/APIDocsGet",
+    "controller": "APIDocsGet",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/MLMWallet-Balance",
+    "controller": "MLMWalletBalance",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/ALL-Recharge-List",
+    "controller": "ALL_Recharge_List",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/MLMWallet-Statement",
+    "controller": "MLMWalletStatement",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/Aggregate-Wallet-Statement",
+    "controller": "Aggregate_Wallet_Statement",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/Commission-Structure",
+    "controller": "Commission_Structure",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/Utilities-Commission-Structure",
+    "controller": "Utilities_Commission_Structure",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/Commision-Report",
+    "controller": "CommisionReport",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/freebusinesskeywords",
+    "controller": "FreeBusinessKeywords",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/business-kyc",
+    "controller": "Business_KYC",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/logout",
+    "controller": "visitor_signup",
+    "action": "Logoutmerchant"
+  },
+  {
+    "url": "reseller-login",
+    "controller": "visitor_signup",
+    "action": "visitor_login"
+  },
+  {
+    "url": "Login-as-reseller",
+    "controller": "Login_as_member",
+    "action": "Index"
+  },
+  {
+    "url": "reseller-signup",
+    "controller": "visitor_signup",
+    "action": "Index"
+  },
+  {
+    "url": "store-front",
+    "controller": "OuterPages",
+    "action": "AdvertiseSell"
+  },
+  {
+    "url": "term-conditions",
+    "controller": "OuterPages",
+    "action": "TermAndConditionAdvertiseSell"
+  },
+  {
+    "url": "how-it-work",
+    "controller": "OuterPages",
+    "action": "Howit_work"
+  },
+  {
+    "url": "Pricing",
+    "controller": "OuterPages",
+    "action": "PricingPackages"
+  },
+  {
+    "url": "advertise-pricing",
+    "controller": "Pricing",
+    "action": "index"
+  },
+  {
+    "url": "franchisee/all-tickets",
+    "controller": "AllTickets",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/Customer-Tickets",
+    "controller": "Customer_Ticket",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/Ticket-Details",
+    "controller": "Ticket_Details",
+    "action": "Index"
+  },
+  {
+    "url": "advertise-benefits",
+    "controller": "OuterPages",
+    "action": "Benefites"
+  },
+  {
+    "url": "Regisrtration-Confirmation/{action}",
+    "controller": "VisitorConfirmation",
+    "action": "Index"
+  },
+  {
+    "url": "outer-business-kyc",
+    "controller": "OuterBusiness_KYC",
+    "action": "Index"
+  },
+  {
+    "url": "outer-business-keywords",
+    "controller": "OuterBusinessKeywords",
+    "action": "Index"
+  },
+  {
+    "url": "outer-business-listing",
+    "controller": "OuterFreeBusinessKeywords",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/my-category",
+    "controller": "OuterBusinessKeywords",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/updates",
+    "controller": "ResellerUpdates",
+    "action": "Index"
+  },
+  {
+    "url": "Reset-Password/{loginid}/{RandomNumber}",
+    "controller": "Forgot_Password",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/all-members",
+    "controller": "all_members",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/unverified-members",
+    "controller": "unverified_members",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/OrderPayment-Status",
+    "controller": "OrderPaymentStatus",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/customer-wallet-statement",
+    "controller": "customer_wallet_statement",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/Orders-Bv",
+    "controller": "Order_BV",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/Utilities-BV",
+    "controller": "Utilities_BV",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/Bv-Report",
+    "controller": "Bv_Report",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/Pv-Report",
+    "controller": "Pv_Report",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/Bv-Distribute",
+    "controller": "Bv_Distribute",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/Pv-Distribute",
+    "controller": "Pv_Distribute",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/customer-wallet",
+    "controller": "customer_wallet",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/Merchant-Leads",
+    "controller": "Merchant_Leads",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/All-Merchant",
+    "controller": "All_Merchant",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/Merchant-Leads-Active",
+    "controller": "Merchant_Leads_Active",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/Get-Affiliate-User-Orders",
+    "controller": "GetAffiliateUserOrders",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/TopUp-Request",
+    "controller": "Topup_Request",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/Email-Setting",
+    "controller": "EmailSetting",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/PayYou-Setting",
+    "controller": "PayYou_Setting",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/Product-Bv-Pv",
+    "controller": "Product_Setting_BV_PV",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/Utilities-Bv-Pv",
+    "controller": "Utilities_Setting_BV_PV",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/Facebook-Setting",
+    "controller": "Facebook_Setting",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/GooglePluse-Setting",
+    "controller": "GooglePulse_Setting",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/SMS-API",
+    "controller": "Sms_ApiSetting",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/reseller-package",
+    "controller": "ResellerPackage",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/6KcEWOoQxJRQdh08Yn3maiuYANWOgg0S",
+    "controller": "PackagePurchaseInvoice",
+    "action": "Index"
+  },
+  {
+    "url": "secure-payment-gateway/package-payment-success",
+    "controller": "OnlineResellerPackageResponse",
+    "action": "PaymentSuccess"
+  },
+  {
+    "url": "secure-payment-gateway/package-payment-failed",
+    "controller": "OnlineResellerPackageResponse",
+    "action": "PaymentFailed"
+  },
+  {
+    "url": "secure-payment-gateway/package-payment-inprocess",
+    "controller": "OnlineResellerPackageResponse",
+    "action": "PaymentInProcess"
+  },
+  {
+    "url": "secure-payment-gateway/package-payment-cancel",
+    "controller": "OnlineResellerPackageResponse",
+    "action": "PaymentCancel"
+  },
+  {
+    "url": "{controller}/{action}/{id}",
+    "controller": "Home",
+    "action": "Index"
+  },
+  {
+    "url": "franchisee/contact-us",
+    "controller": "Common",
+    "action": "ContactUs"
+  }
+]

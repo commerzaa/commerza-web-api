@@ -1,0 +1,1602 @@
+[
+ {
+  "url": "ether-scan-transaction",
+  "controller": "EthereumTransaction",
+  "action": "Index"
+ },
+ {
+  "url": "referral/Luxuary-Fund",
+  "controller": "Luxuary_Fund",
+  "action": "Index"
+ },
+ {
+  "url": "capture-image",
+  "controller": "CaptureImage",
+  "action": "Index"
+ },
+ {
+  "url": "referral/self-shopping-details",
+  "controller": "MemberPurchaseDetails",
+  "action": "Index"
+ },
+ {
+  "url": "referral/all-self-merchant-details",
+  "controller": "MemberallmerchantDetails",
+  "action": "Index"
+ },
+ {
+  "url": "referral/qr-request-report",
+  "controller": "QRRequestDetails",
+  "action": "Index"
+ },
+ {
+  "url": "referral/self-merchant-details",
+  "controller": "MembermerchantDetails",
+  "action": "Index"
+ },
+ {
+  "url": "referral/99iRNiQW1t15cd8CtBtuA67aFNhG6yqLRtyyyyy",
+  "controller": "LevelShoppingDetails",
+  "action": "Index"
+ },
+ {
+  "url": "page-not-found/{action}",
+  "controller": "PageNotFound",
+  "action": "Index"
+ },
+ {
+  "url": "contact-us/{action}",
+  "controller": "contact_us",
+  "action": "Index"
+ },
+ {
+  "url": "referral/Car-Fund",
+  "controller": "Car_Fund",
+  "action": "Index"
+ },
+ {
+  "url": "referral/House-Fund",
+  "controller": "House_Fund",
+  "action": "Index"
+ },
+ {
+  "url": "referral/Travel-Fund",
+  "controller": "Travel_Fund",
+  "action": "Index"
+ },
+ {
+  "url": "referral/new-deposit-history",
+  "controller": "Topup_Request_List",
+  "action": "Index"
+ },
+ {
+  "url": "referral/T4TBgWboF8TGvzM_plus_tQofQw==",
+  "controller": "Ewallet_Rewards",
+  "action": "Index"
+ },
+ {
+  "url": "referral/xN7ZZCwoYQ5rxh4YU0RZ8Hh3rupfJtpcnNhZhGZ0LWE=",
+  "controller": "ATC_Topup_Request_List",
+  "action": "Index"
+ },
+ {
+  "url": "referral/xN7ZZCwoYQ5rxh4YU0RZ8Hh3rfgdgdf4upfJtpcnNhZhGZ0LWE=",
+  "controller": "BTCSTATEMENT",
+  "action": "Index"
+ },
+ {
+  "url": "referral/xN7ZZCwoYQ5rxh4YU0RZ8Hh3rfgdgdfBIO4upfJtpcnNhZhGZ0LWE",
+  "controller": "Topup_Request_BlockIO",
+  "action": "Index"
+ },
+ {
+  "url": "referral/1X_slash_c_plus_UA1SFKc2FmEZnQtYQ==",
+  "controller": "Royality_Statement",
+  "action": "Index"
+ },
+ {
+  "url": "referral/_plus_8_slash_U7JrlVkU4YQJzYr9PzcpP8n236HeVrtoU2EbrKos=",
+  "controller": "Month_Wise_Income",
+  "action": "Index"
+ },
+ {
+  "url": "referral/cash-reward",
+  "controller": "CashReward",
+  "action": "Index"
+ },
+ {
+  "url": "referral/kes0wFOkRKI9Be2Enx7qTm5CyY7VeigT",
+  "controller": "Atc_Wallet_Statement",
+  "action": "Index"
+ },
+ {
+  "url": "referral/1X_slash_c_plus_UA1SFKc2FmEZnQtYQRR==",
+  "controller": "Royality_Income",
+  "action": "Index"
+ },
+ {
+  "url": "referral/shopping-statement",
+  "controller": "Shoping_Statement",
+  "action": "Index",
+  "Type": 1
+ },
+ {
+  "url": "referral/gEUxSIO_slash_5155cdvnvnuyu88Trans",
+  "controller": "TransferHistory_Ewallet",
+  "action": "Index",
+  "Type": 1
+ },
+ {
+  "url": "referral/gEUxSIO_slash_5155cdvnvnuyu88TransCM",
+  "controller": "TransferHistory_Commissionwallet",
+  "action": "Index",
+  "Type": 1
+ },
+ {
+  "url": "referral/gEUxSIO_slash_5155cdvnvnuyu88TransGW",
+  "controller": "TransferHistory_Growthwallet",
+  "action": "Index",
+  "Type": 1
+ },
+ {
+  "url": "referral/gEUxSIO_slash_5155cdvnvnuyu88TransSW",
+  "controller": "TransferHistory_Shoppingwallet",
+  "action": "Index",
+  "Type": 1
+ },
+ {
+  "url": "referral/gEUxSIO_slash_5155cd8CtBtuA67aFNhG6yqL",
+  "controller": "Shoping_Statement",
+  "action": "Index",
+  "Type": 2
+ },
+ {
+  "url": "referral/99iRNiQW1t15cd8CtBtuA67aFNhG6yqLRty",
+  "controller": "LoginHistory",
+  "action": "Index",
+  "Type": 2
+ },
+ {
+  "url": "referral/6JU5kMoBslyqM467i3dxeQ==",
+  "controller": "LevelIncomeHistory",
+  "action": "Index"
+ },
+ {
+  "url": "referral/generation-income",
+  "controller": "GenerationIncome",
+  "action": "Index"
+ },
+ {
+  "url": "referral/distibute-generation-income",
+  "controller": "Distibute_Genratration_Income",
+  "action": "Index"
+ },
+ {
+  "url": "referral/6JU5kMoBslyqM467i3dxeQA==",
+  "controller": "BonusIncome",
+  "action": "Index"
+ },
+ {
+  "url": "referral/level-income",
+  "controller": "LevelIncome",
+  "action": "Index"
+ },
+ {
+  "url": "referral/u_slash_z63m_plus_zPFrcOg6YzDMSLw==",
+  "controller": "Coin_Statement",
+  "action": "Index"
+ },
+ {
+  "url": "referral/u_slash_z63m_plus_zPFrcOg6YzDMSLwVV",
+  "controller": "ViewAgreement",
+  "action": "Index"
+ },
+ {
+  "url": "referral/bbkQAaAq4MK8zyWzbIAVNLxYTWq0xQ0Vasx",
+  "controller": "Bonus_Reward_Income",
+  "action": "Index"
+ },
+ {
+  "url": "referral/e-waalet-statement",
+  "controller": "INR_Wallet_Statement",
+  "action": "Index"
+ },
+ {
+  "url": "referral/9P1ssmoPPRyjgEK9tT3AzE_plus__slash_xZ9qgVco",
+  "controller": "Coupon_Request_History",
+  "action": "Index"
+ },
+ {
+  "url": "referral/9P1ssmoPPRyjgEK9tT3AzE_plus__slash_xZ9qgVcovou",
+  "controller": "Voucher_Statement",
+  "action": "Index"
+ },
+ {
+  "url": "referral/_slash_g5NIkf5SdhdXPIHHReTpqk81kdLEGH9",
+  "controller": "ChangePasswordHistory",
+  "action": "Index"
+ },
+ {
+  "url": "referral/Wi3n3r0P5aUrCPvp3Z0ohA==",
+  "controller": "Purchase_Coin_For_Hold_Newlist",
+  "action": "Index"
+ },
+ {
+  "url": "referral/SS5GxP8qbhKOu6_plus_d_plus_PajG0EPyAzYrzE5",
+  "controller": "Direct_Member_Reward",
+  "action": "Index"
+ },
+ {
+  "url": "referral/SS5GxP8qbhKOu6_plus_d_plus_PajG0EPyAzYrzE5DD",
+  "controller": "Downline_Member_Reward",
+  "action": "Index"
+ },
+ {
+  "url": "referral/SS5GxP8qbhKOu6_plus_d_fg",
+  "controller": "Direct_Rewards",
+  "action": "Index"
+ },
+ {
+  "url": "referral/9XQZGOn9bD4Z5qX3LyCeKwAw5ZOZgEUv",
+  "controller": "Member_Rank_Reward",
+  "action": "Index"
+ },
+ {
+  "url": "referral/HuRhpfq6C4GO4FNq68tK_plus_jxX8G_plus_r_plus_dx5",
+  "controller": "Member_Joining_Reward",
+  "action": "Index"
+ },
+ {
+  "url": "referral/V5w1B9hRcD8atvZ9V43xGkEPyAzYrzE5",
+  "controller": "Member_Timing_Reward",
+  "action": "Index"
+ },
+ {
+  "url": "referral/9ary549hSIg5GrgfzfTJgZzYWYRmdC1hdwnkAAS4217",
+  "controller": "Order_BV",
+  "action": "Index"
+ },
+ {
+  "url": "referral/feEARoUV6e55ln_slash_25TzNpMCjNTsjtMnP",
+  "controller": "MyCommunity_FileView",
+  "action": "Index"
+ },
+ {
+  "url": "referral/8wy1UOO1qRgoCeNfTDxbtQgJR_slash_nDQmSZ",
+  "controller": "Auto_Matrix_Genelogy",
+  "action": "Index"
+ },
+ {
+  "url": "referral/fWkrH5a1KDqS_plus_Ak9T8r_slash_phRCYHkO7NJ6",
+  "controller": "Upgrade_package_member",
+  "action": "Index"
+ },
+ {
+  "url": "referral/NqIw1BbAL2Ins_plus_to_plus_bAfzZ0eX98MP0ci",
+  "controller": "ProductOrderDetails",
+  "action": "Index"
+ },
+ {
+  "url": "referral/new-deposit-request",
+  "controller": "Topup_Request",
+  "action": "Index"
+ },
+ {
+  "url": "referral/Topup-Request-Mobile",
+  "controller": "Topup_Request_Mobile",
+  "action": "Index"
+ },
+ {
+  "url": "referral/cl14_slash_4Sd6nrLk2Atv6xzCpzYWYRmdC1h",
+  "controller": "BTC_Manual_Topup",
+  "action": "Index"
+ },
+ {
+  "url": "referral/coin-topup-requests",
+  "controller": "ATC_Topup_Request",
+  "action": "Index"
+ },
+ {
+  "url": "referral/apply-for-franchise",
+  "controller": "Apply_For_Franchise",
+  "action": "Index"
+ },
+ {
+  "url": "referral/GCFE2Ctopd_slash_3cDJR_slash_Xgn0y1Ve6jZCUaV",
+  "controller": "Transfer_Wallet_Fund",
+  "action": "Index"
+ },
+ {
+  "url": "referral/GCFE2Ctopd_slash_3cDJR_slash_NARGXgn0y1Ve6jZCUaV",
+  "controller": "NewAgreement",
+  "action": "Index"
+ },
+ {
+  "url": "referral/Transfer-Wallet-Fund-mobile",
+  "controller": "Transfer_Wallet_Fund_mobile",
+  "action": "Index"
+ },
+ {
+  "url": "referral/GCFE2Ctopd_slash_3cDJR_slashCommission_NARGXgn0y1Ve6jZCUaV",
+  "controller": "CommissionWallet_M_M",
+  "action": "Index"
+ },
+ {
+  "url": "referral/9P1ssmoPPRy7o2vG5R3I7g==",
+  "controller": "Coupon_Request",
+  "action": "Index"
+ },
+ {
+  "url": "referral/9P1ssmoPPRy7o2vMTMG5R3I7g==",
+  "controller": "ShoppingWallet_M_M",
+  "action": "Index"
+ },
+ {
+  "url": "referral/GCFE2Ctopd_slash_3cDJR_slash_Xgn0y1Ve6jZCUaVV",
+  "controller": "Transfer_Wallet_Fund_multipleWallet",
+  "action": "Index"
+ },
+ {
+  "url": "referral/GCFE2Ctopd90d6GCcuTYBGm8AmPpz_plus_qwZMGjT0msPmo=",
+  "controller": "Transfer_Income_Wallet_Fund",
+  "action": "Index"
+ },
+ {
+  "url": "referral/4CO1fbJYRYnhkO_slash_qiO7lLmDbz_slash_gmdhnEZMGjT0msPmo=",
+  "controller": "Transfer_Coin_Wallet_Fund",
+  "action": "Index"
+ },
+ {
+  "url": "referral/4CO1fbJYRYnhkO_slash_qiO7lLmDbz_slash_gmdhnEZMGjTCoin0msPmo",
+  "controller": "GrowthWalletM_M_Transfer",
+  "action": "Index"
+ },
+ {
+  "url": "referral/4CO1fbJYRYkB4FISKMR49hkSHCD0rPb6CRlqU76jumac2FmEZnQtYQ==",
+  "controller": "Transfer_Commission_Wallet_Fund",
+  "action": "Index"
+ },
+ {
+  "url": "referral/Transfer-Commission-Wallet-Fund-mobile",
+  "controller": "Transfer_Commission_Wallet_Fund_mobile",
+  "action": "Index"
+ },
+ {
+  "url": "referral/ePvwNBzxRC_plus_wv_plus_oMfQmHtQ==",
+  "controller": "BinaryPayout",
+  "action": "Index"
+ },
+ {
+  "url": "referral/4RYQwa12_plus_d_slash_mTOSm1LXk0A==",
+  "controller": "Level_Tree2",
+  "action": "Index"
+ },
+ {
+  "url": "referral/4RYQwa12bina_plus_d_slash_mTOSm1LXk0A==",
+  "controller": "Binary_Tree",
+  "action": "Index"
+ },
+ {
+  "url": "referral/G3pAMJ553_slash_HsviMO8onb_slash_QNpSHiI1Nu0",
+  "controller": "Repurchage_Income",
+  "action": "Index"
+ },
+ {
+  "url": "referral/jncL6ed1F1tdnElcfQttRmImitjHyXW6",
+  "controller": "Fund_Transfer_History",
+  "action": "Index"
+ },
+ {
+  "url": "referral/lu2P6i7hhQBDAt1DbQfLGA==",
+  "controller": "Binary_Income_Locking",
+  "action": "Index"
+ },
+ {
+  "url": "referral/cxy1VCGr5YOMslJB0cZseA==CXR",
+  "controller": "I_Card",
+  "action": "Index"
+ },
+ {
+  "url": "referral/i-wallet-fund-transfer-history",
+  "controller": "IWallet_Fund_Transfer_History",
+  "action": "Index"
+ },
+ {
+  "url": "partners",
+  "controller": "Partners",
+  "action": "Index"
+ },
+ {
+  "url": "referral/CBvEI781cQDLrvAUespdMg=PRF=",
+  "controller": "PaymentRequestFranchise",
+  "action": "Index"
+ },
+ {
+  "url": "franchise",
+  "controller": "Franchise",
+  "action": "Index"
+ },
+ {
+  "url": "referral/Community-Message",
+  "controller": "CommunityMessage",
+  "action": "Index"
+ },
+ {
+  "url": "referral/jDWe8vAmeE4ftAcuAIEPuw==",
+  "controller": "Reward_List",
+  "action": "Index"
+ },
+ {
+  "url": "referral/CreateNew-Message",
+  "controller": "CommunityMessage",
+  "action": "CreateNewMsg"
+ },
+ {
+  "url": "referral/View-Message",
+  "controller": "CommunityMessage",
+  "action": "Index"
+ },
+ {
+  "url": "refer-to-friend",
+  "controller": "ReferToFriend",
+  "action": "Index"
+ },
+ {
+  "url": "promos-and-advertisement/{id}",
+  "controller": "PromosAndAdvertisement",
+  "action": "Index"
+ },
+ {
+  "url": "advertise-sell-benefits",
+  "controller": "AdvertiseAndSellOuter",
+  "action": "AdvertiseAndSellBenefits"
+ },
+ {
+  "url": "advertise-sell-pricing",
+  "controller": "AdvertiseAndSellOuter",
+  "action": "AdvertiseAndSellPricing"
+ },
+ {
+  "url": "advertise-sell-terms-conditions",
+  "controller": "AdvertiseAndSellOuter",
+  "action": "AdvertiseAndSellTermsConditions"
+ },
+ {
+  "url": "advertise-sell-privacy-policy",
+  "controller": "AdvertiseAndSellOuter",
+  "action": "AdvertiseAndSellPrivacyPolicy"
+ },
+ {
+  "url": "advertise-sell-payment",
+  "controller": "AdvertiseAndSellOuter",
+  "action": "AdvertiseAndSellPayments"
+ },
+ {
+  "url": "referral-program-terms-conditions",
+  "controller": "AdvertiseAndSellOuter",
+  "action": "ReferralProgramTermsConditions"
+ },
+ {
+  "url": "referral-program-privacy-policy",
+  "controller": "AdvertiseAndSellOuter",
+  "action": "ReferralProgramPrivacyPolicy"
+ },
+ {
+  "url": "signup/{Referrelcode}",
+  "controller": "visitor_signup",
+  "action": "referrel_signup"
+ },
+ {
+  "url": "PQ_slash_o_plus_j_plus_QNFZ5r4CiihK9Cwx/{Referrelcode}",
+  "controller": "refferal_signup",
+  "action": "referrel_signup"
+ },
+ {
+  "url": "login",
+  "controller": "visitor_signup",
+  "action": "referrel_login"
+ },
+ {
+  "url": "Reset-Password/{loginid}/{RandomNumber}",
+  "controller": "Forgot_Password",
+  "action": "Index"
+ },
+ {
+  "url": "about-us/{action}",
+  "controller": "about_us",
+  "action": "Index"
+ },
+ {
+  "url": "disclaimer",
+  "controller": "disclaimer",
+  "action": "Index"
+ },
+ {
+  "url": "Mission",
+  "controller": "Mission",
+  "action": "Index"
+ },
+ {
+  "url": "Privacy-Policy",
+  "controller": "Privacy_Policy",
+  "action": "Index"
+ },
+ {
+  "url": "TermsandConditions",
+  "controller": "TermsandConditions",
+  "action": "Index"
+ },
+ {
+  "url": "traffic-booster",
+  "controller": "TrafficBooster",
+  "action": "Index"
+ },
+ {
+  "url": "website-builder",
+  "controller": "WebSiteBuilder",
+  "action": "Index"
+ },
+ {
+  "url": "lead-generator",
+  "controller": "leadgenerators",
+  "action": "Index"
+ },
+ {
+  "url": "pricing",
+  "controller": "pricing",
+  "action": "Index"
+ },
+ {
+  "url": "support",
+  "controller": "support",
+  "action": "Index"
+ },
+ {
+  "url": "sms-blasting",
+  "controller": "smsblasting",
+  "action": "Index"
+ },
+ {
+  "url": "email-blasting",
+  "controller": "emailblasting",
+  "action": "Index"
+ },
+ {
+  "url": "social-media-promotion",
+  "controller": "socialmediapromo",
+  "action": "Index"
+ },
+ {
+  "url": "whats-app-marketing",
+  "controller": "whatsappmarketing",
+  "action": "Index"
+ },
+ {
+  "url": "businessprofile",
+  "controller": "businessprofile",
+  "action": "Index"
+ },
+ {
+  "url": "affiliate-program/{action}",
+  "controller": "affiliateprogram",
+  "action": "Index"
+ },
+ {
+  "url": "search-not-found/{action}",
+  "controller": "SearchNotFound",
+  "action": "Index"
+ },
+ {
+  "url": "Regisrtration-Confirmation/{action}",
+  "controller": "VisitorConfirmation",
+  "action": "Index"
+ },
+ {
+  "url": "connect-with-customers/{action}",
+  "controller": "connect_with_customers",
+  "action": "Index"
+ },
+ {
+  "url": "how-it-works/{action}",
+  "controller": "how_it_works",
+  "action": "Index"
+ },
+ {
+  "url": "business-found/{action}",
+  "controller": "business_found",
+  "action": "Index"
+ },
+ {
+  "url": "list-your-business-free/{action}",
+  "controller": "list_your_business_free",
+  "action": "Index"
+ },
+ {
+  "url": "p/{PrName}/{PrCode}",
+  "controller": "Product_Detail",
+  "action": "Index"
+ },
+ {
+  "url": "referral/legal-documents",
+  "controller": "Legal_Documents",
+  "action": "Index"
+ },
+ {
+  "url": "currencyConverter",
+  "controller": "currencyConverter",
+  "action": "Index"
+ },
+ {
+  "url": "currencyConverters",
+  "controller": "currencyConverters",
+  "action": "Index"
+ },
+ {
+  "url": "ImageGalary",
+  "controller": "ImageGalary",
+  "action": "Index"
+ },
+ {
+  "url": "coin-rate",
+  "controller": "Websit_CoinRate",
+  "action": "Index"
+ },
+ {
+  "url": "VideoGalary",
+  "controller": "VideoGalary",
+  "action": "Index"
+ },
+ {
+  "url": "Certificate-ImageGallery",
+  "controller": "Certificate_ImageGallery",
+  "action": "Index"
+ },
+ {
+  "url": "referral/do-not-refresh-payment",
+  "controller": "MakeOnlinePayment",
+  "action": "Index"
+ },
+ {
+  "url": "referral/payment-successful",
+  "controller": "MakeOnlinePayment",
+  "action": "PaymentSuccess"
+ },
+ {
+  "url": "referral/payment-failure",
+  "controller": "MakeOnlinePayment",
+  "action": "PaymentFailure"
+ },
+ {
+  "url": "BitcoinGraph",
+  "controller": "BitcoinGraph",
+  "action": "Index"
+ },
+ {
+  "url": "referral/dashboard",
+  "controller": "ReferralDashBoard",
+  "action": "Index"
+ },
+ {
+  "url": "referral/ZjJcCZQxvazNR891Dxl58Q==",
+  "controller": "D1_Level_ROI",
+  "action": "Index"
+ },
+ {
+  "url": "referral/cxy1VCGr5YOMslJB0cZseA==LPPL",
+  "controller": "RequestList",
+  "action": "Index"
+ },
+ {
+  "url": "websitenews",
+  "controller": "WebsiteNews",
+  "action": "Index"
+ },
+ {
+  "url": "websitePopUpimage",
+  "controller": "WebsitePopUP",
+  "action": "Index"
+ },
+ {
+  "url": "popuptestimonial",
+  "controller": "PopupTestimonial",
+  "action": "Index"
+ },
+ {
+  "url": "referral/CWkW6MF47XAK0Z6StkJupw==",
+  "controller": "D2_Binary_ROI",
+  "action": "Index"
+ },
+ {
+  "url": "referral/PQ_slash_o_plus_j_plus_QNFZ5r4CiihK9Cw==",
+  "controller": "D3_Binary",
+  "action": "Index"
+ },
+ {
+  "url": "referral/PQ_slash_o_plus_j_plus_QNFZ5r4CiihK9Cwy26y6==",
+  "controller": "DashboardHelping",
+  "action": "Index"
+ },
+ {
+  "url": "referral/PQ_slash_o_plus_j_plus_QNFZ5r4CiihK9Cwdsfsdfers==",
+  "controller": "Default1_New_Dashboard",
+  "action": "Index"
+ },
+ {
+  "url": "referral/KAeB5n6tXKPue8n2Hy8qtao3KRE0MW9b",
+  "controller": "default_New_Dashbord",
+  "action": "Index"
+ },
+ {
+  "url": "referral/deposit-crypto-coin-in-wallet",
+  "controller": "DepositBTC",
+  "action": "Index"
+ },
+ {
+  "url": "referral/deposit-btc",
+  "controller": "DepositBTCNew",
+  "action": "Index"
+ },
+ {
+  "url": "referral/btc-wallet-statement",
+  "controller": "BTC_Wallet_Statement",
+  "action": "Index"
+ },
+ {
+  "url": "referral/transfer-btc-wallet",
+  "controller": "Transfer_BTC_Wallet",
+  "action": "Index"
+ },
+ {
+  "url": "referral/IB3q6lm_plus_qQc07OvxG9zn3p0tdFmFv1wUnNhZhGZ0LWE=",
+  "controller": "D4_Level_ROI_Coin_Binary",
+  "action": "Index"
+ },
+ {
+  "url": "referral/kCurKY5PEdWc2FmEZnQtYQ==",
+  "controller": "D5_Level",
+  "action": "Index"
+ },
+ {
+  "url": "referral/new-deposit",
+  "controller": "MakeDepositOrHold",
+  "action": "Index"
+ },
+ {
+  "url": "referral/8A98ZbdmOjb3yf_plus_JrhRP1SiVZCQfTlUn",
+  "controller": "D6_Level_Repurchase",
+  "action": "Index"
+ },
+ {
+  "url": "referral/mefol8A7MRc07OvxG9zn3hBOvx0WDpUF",
+  "controller": "D7_Level_ROI_Coin",
+  "action": "Index"
+ },
+ {
+  "url": "referral/Z9e4_slash_GmN5jVB1mEWZbx2tg==",
+  "controller": "D8_Singleg",
+  "action": "Index"
+ },
+ {
+  "url": "referral/zDP1IfT1tTsdDfG_slash_aqEpEJzYWYRmdC1h",
+  "controller": "D9_Forced_Matrix",
+  "action": "Index"
+ },
+ {
+  "url": "referral/hRI6rZup2MQiTuElyB5rc7aCTshNao3x",
+  "controller": "D10_Binary_Repurchase",
+  "action": "Index"
+ },
+ {
+  "url": "referral/commission-wallet",
+  "controller": "commission_wallet",
+  "action": "Index"
+ },
+ {
+  "url": "referral/commission-wallet-statement",
+  "controller": "commission_wallet_statement",
+  "action": "Index"
+ },
+ {
+  "url": "Login-as-member",
+  "controller": "Login_as_member",
+  "action": "Index"
+ },
+ {
+  "url": "referral/Ln_plus_AzmvCr9MiEgwBonusDetails",
+  "controller": "PerformanceBonusDetails",
+  "action": "Index"
+ },
+ {
+  "url": "referral/all-downline-list",
+  "controller": "All_Downline_Member_List",
+  "action": "Index"
+ },
+ {
+  "url": "referral/1MzS0XX72VdVJs0U8RDMb322gzjSa1zi",
+  "controller": "All_UplineMember_List",
+  "action": "Index"
+ },
+ {
+  "url": "referral/zjsX5hxG67C43TWtO7L4HA==",
+  "controller": "Level_DownLine",
+  "action": "Index"
+ },
+ {
+  "url": "referral/8FTN_plus_WYOT_slash_Udq91TGJMNm_slash_fzMy5u1tRa",
+  "controller": "Force_Matrics_Downline",
+  "action": "Index"
+ },
+ {
+  "url": "referral/8FTN_plus_WYOT_slash_Udq91TGJMNmwithout_wcl_slash_fzMy5u1tRa",
+  "controller": "Force_Matrix_Tree_WithoutWCL",
+  "action": "Index"
+ },
+ {
+  "url": "referral/AbNkEAlWVO7ysaKrSmu15lISTDonatiomBVvezU_plus_",
+  "controller": "Donation",
+  "action": "Index"
+ },
+ {
+  "url": "referral/8FTN_plus_WYOT_slash_Udq91TGGenologyJMNm_slash_fzMy5u1tRa",
+  "controller": "Force_Matrix_Genology_WithoutWCL",
+  "action": "Index"
+ },
+ {
+  "url": "referral/8FTN_plus_WYOT_slash_downline_wclUdq91TGJMNm_slash_fzMy5u1tRa",
+  "controller": "Force_Matrics_Downline_WithoutWCL",
+  "action": "Index"
+ },
+ {
+  "url": "referral/8FTN_plus_WYOT_slash_single_tree_wclUdq91TGJMNm_slash_fzMy5u1tRa",
+  "controller": "Single_Leg_Tree_WithoutWCL",
+  "action": "Index"
+ },
+ {
+  "url": "referral/8FTN_plus_WYOT_slash_Leg_Genology_wclUdq91TGJMNm_slash_fzMy5u1tRa",
+  "controller": "Single_Leg_Genology_WithoutWCL",
+  "action": "Index"
+ },
+ {
+  "url": "referral/8FTN_plus_WYOT_slashSingle_Downlinewcl_Udq91TGJMNm_slash_fzMy5u1tRa",
+  "controller": "Single_Leg_Downline_WithoutWCL",
+  "action": "Index"
+ },
+ {
+  "url": "referral/8wy1UOO1qRgOtZVYXOY86Z_slash_breOzCiwZ",
+  "controller": "Auto_Matrix_Downline",
+  "action": "Index"
+ },
+ {
+  "url": "referral/8FTN_plus_WYOT_slash_V9MJ4YfsNKikOdh_slash_q0p9Ts",
+  "controller": "Force_Matrics_List",
+  "action": "Index"
+ },
+ {
+  "url": "referral/9_plus_iB3Q5zmgQ7oVfl6B_slash_ChQ==",
+  "controller": "Left_Downline_Member_List",
+  "action": "Index"
+ },
+ {
+  "url": "referral/7iGKqzH0WfX38zMubtbUWg==",
+  "controller": "Right_Downline_Member_List",
+  "action": "Index"
+ },
+ {
+  "url": "referral/_slash_Yi9xQd6wNdqNn9CHsMXiqhKxdm_plus_YzgY",
+  "controller": "UnsettledBusiness",
+  "action": "Index"
+ },
+ {
+  "url": "referral/J_plus_4FvJpj3jcsy5RKDx_plus_fgCoQjC9PPPPOkqinNhZhGZ0LWE",
+  "controller": "ReferralTest",
+  "action": "Index"
+ },
+ {
+  "url": "referral/J_plus_4FvJpj3jcsy5RKDx_plus_fgCoQjC9POkqinNhZhGZ0LWE=",
+  "controller": "LevelWiseMemberReport",
+  "action": "Index"
+ },
+ {
+  "url": "referral/GCFE2Ctopd96qUhYdKIKSA==",
+  "controller": "TransferAtcCoin",
+  "action": "Index"
+ },
+ {
+  "url": "referral/zxvuLIZWUzv5xuvLubiJfXBpD7As1KqrKGQRSh1HiTRYZ8hdTzxxyA==",
+  "controller": "TransferedAtcCoin",
+  "action": "Index"
+ },
+ {
+  "url": "referral/add-ticket",
+  "controller": "AddTicket",
+  "action": "ReferralIndex"
+ },
+ {
+  "url": "referral/ticket-list",
+  "controller": "AllTickets",
+  "action": "RefferalIndex"
+ },
+ {
+  "url": "total-member",
+  "controller": "Totalmember",
+  "action": "Index"
+ },
+ {
+  "url": "total-btc",
+  "controller": "Totalbtc",
+  "action": "Index"
+ },
+ {
+  "url": "total-btc-Received",
+  "controller": "TotalbtcReceived",
+  "action": "Index"
+ },
+ {
+  "url": "referral/earnings",
+  "controller": "Earnings",
+  "action": "Index"
+ },
+ {
+  "url": "referral/direct-income",
+  "controller": "ReferralBonus",
+  "action": "Index"
+ },
+ {
+  "url": "referral/bbkQAaAq4MK8zyWzbIAVNLxYTWq0xQ0V",
+  "controller": "Referral_Bonus_Flush",
+  "action": "Index"
+ },
+ {
+  "url": "referral/fFHM1sBF5bUFM41jr0qke_plus_UEBQQ6xFbq",
+  "controller": "UpgradeLevelIncome",
+  "action": "Index"
+ },
+ {
+  "url": "referral/fFHM1sBF5bUFM41jr0qkezAFypQod13P",
+  "controller": "UpgradeLevelIncomeFlush",
+  "action": "Index"
+ },
+ {
+  "url": "referral/fFHM1sBF5bUFM41jr0qke_plus_UEBQQ6xFbq11",
+  "controller": "Directreferralbooster",
+  "action": "Index"
+ },
+ {
+  "url": "referral/2LnlbAZTWFEncUxhPvG2Cw==",
+  "controller": "Document_Zone",
+  "action": "Index"
+ },
+ {
+  "url": "referral/xPkfHdsHW2daGwuZV9oybQ==",
+  "controller": "rollUp_bonus",
+  "action": "Index"
+ },
+ {
+  "url": "referral/N2Y7_plus_EHVnk2ECCuzby4Hqg==",
+  "controller": "OverallEarnings",
+  "action": "Index"
+ },
+ {
+  "url": "referral/yZ8wXg_plus_rQKbSq5ctZty_plus_aD_plus_469DQWVTx",
+  "controller": "GrowthReferralBonus",
+  "action": "Index"
+ },
+ {
+  "url": "referral/bcaA0Q9FHDE61G7XtD0pSStO_slash_gpP0v_slash_N",
+  "controller": "ActivityTeamBonus",
+  "action": "Index"
+ },
+ {
+  "url": "referral/20_slash_w_slash_e4zV43RFNBXSN2AGg==",
+  "controller": "Level_Genelogy",
+  "action": "Index"
+ },
+ {
+  "url": "referral/uZZrQTKP0u2CSiBA3FKkL5zYWYRmdC1h",
+  "controller": "BinaryLevelBonus",
+  "action": "Index"
+ },
+ {
+  "url": "referral/aUhVgABBeTa9MmyBzD22nA==",
+  "controller": "Reward_Achive",
+  "action": "Index"
+ },
+ {
+  "url": "referral/c3kYzKpqZGPu3qSgL8AuAw==",
+  "controller": "Reward_Achivers",
+  "action": "Index"
+ },
+ {
+  "url": "referral/Pc3kYzKfgdfgdffdpqZGPu3qSgL8AuAw==",
+  "controller": "TokenAchivers",
+  "action": "Index"
+ },
+ {
+  "url": "referral/rZytBsj_slash_0GBfJ4goFkWIAA==",
+  "controller": "GrowthBonus",
+  "action": "Index"
+ },
+ {
+  "url": "referral/rZytBsj_slash_0GBfJ4goFkWIAA==E",
+  "controller": "SalaryIncome",
+  "action": "Index"
+ },
+ {
+  "url": "referral/9ary549hSIg5GrgfzfTJgZzYWYRmdC1h",
+  "controller": "LeadershipBonus",
+  "action": "Index"
+ },
+ {
+  "url": "referral/Payout-Statement",
+  "controller": "Payout_Statement",
+  "action": "Index"
+ },
+ {
+  "url": "referral/auto-purchase-income",
+  "controller": "Auto_Purchaseincome",
+  "action": "Index"
+ },
+ {
+  "url": "referral/smart-work-income-income",
+  "controller": "Smart_Work_Income",
+  "action": "Index"
+ },
+ {
+  "url": "referral/RepurchasePayout-Statement",
+  "controller": "RepurchasePayout_Statement",
+  "action": "Index"
+ },
+ {
+  "url": "referral/my-earnings-points",
+  "controller": "MyPointEarnings",
+  "action": "Index"
+ },
+ {
+  "url": "referral/subscription-history",
+  "controller": "SubscriptionHistory",
+  "action": "Index"
+ },
+ {
+  "url": "referral/invoices/{ID}",
+  "controller": "Invoices",
+  "action": "InvicesPrintable"
+ },
+ {
+  "url": "referral/ProductInvoices/{ID}",
+  "controller": "ProductInvoices",
+  "action": "InvicesPrintable"
+ },
+ {
+  "url": "view-invoices/{ID}",
+  "controller": "Invoices",
+  "action": "InvicesPrintable"
+ },
+ {
+  "url": "referral/kyc",
+  "controller": "KYCCheck",
+  "action": "Index"
+ },
+ {
+  "url": "referral/cL5gx38HZFIHtb4vLbMTsg==",
+  "controller": "MyCommunity",
+  "action": "Index"
+ },
+ {
+  "url": "referral/cL5gx38HZFIHtb4vLbMTsgFdjfj",
+  "controller": "MyCommunity1",
+  "action": "Index"
+ },
+ {
+  "url": "referral/cL5gx38HZFIHtb4vLbMTsgaa==",
+  "controller": "MyCommunity_Matrix",
+  "action": "Index"
+ },
+ {
+  "url": "referral/single-leg-tree",
+  "controller": "Single_Leg_Tree",
+  "action": "Index"
+ },
+ {
+  "url": "referral/myreferrals",
+  "controller": "MyReferrals",
+  "action": "Index"
+ },
+ {
+  "url": "referral/subscribe-us",
+  "controller": "SubscribeUs",
+  "action": "Index"
+ },
+ {
+  "url": "referral/New-Order",
+  "controller": "New_Order",
+  "action": "Index",
+  "Type": 1
+ },
+ {
+  "url": "referral/Complete-Order",
+  "controller": "New_Order",
+  "action": "Index",
+  "Type": 2
+ },
+ {
+  "url": "referral/Cancel-Order",
+  "controller": "New_Order",
+  "action": "Index",
+  "Type": 3
+ },
+ {
+  "url": "referral/post-share",
+  "controller": "PostShareManagement",
+  "action": "Index"
+ },
+ {
+  "url": "surf-now/{PLID}/{TATBID}/{UserPLID}",
+  "controller": "SurfNow",
+  "action": "Index"
+ },
+ {
+  "url": "referral/package-purchase",
+  "controller": "PayItForward",
+  "action": "Index"
+ },
+ {
+  "url": "referral/PayItForward-mobile",
+  "controller": "PayItForward_mobile",
+  "action": "Index"
+ },
+ {
+  "url": "referral/xRJId8N3iO9BRJId8N3iO9BD8sdfg3221vgM2K8xOQR==",
+  "controller": "FrunchiseRequest",
+  "action": "Index"
+ },
+ {
+  "url": "referral/G3pAMJ553_slash_EVT87l9cm75NKIzwKMUX4QEVT87l9cm75NKIzwKMUX4Q",
+  "controller": "Product",
+  "action": "Index"
+ },
+ {
+  "url": "referral/G3pAMJ553_slash_EVT87l9cm75NKIzwORDERcm75NKIzwKMUX4Q",
+  "controller": "Customerorder_details",
+  "action": "Index"
+ },
+ {
+  "url": "referral/G3pAMJ553_slash_EVT87l9cm75NKIzwKMUX4QEVT87l9",
+  "controller": "Website_Products",
+  "action": "Index"
+ },
+ {
+  "url": "referral/G3pAMJ553_slash_EVT87l9cm75NKIzwKMUX4QEVT87l9_P_IF",
+  "controller": "Website_Products",
+  "action": "Index"
+ },
+ {
+  "url": "referral/G3pAMJ553_slash_EVT87l9productdetailcm75NKIzwKMUX4QEVT87l9cm75NKIzwKMUX4Q",
+  "controller": "Product_Detail",
+  "action": "Index"
+ },
+ {
+  "url": "referral/xRJId8N3iO8ogKWPugtUjCayAGMsBRMZyGX2XAxTRuEolWQkH05VJw==",
+  "controller": "PayItForwardMultiplePackage",
+  "action": "Index"
+ },
+ {
+  "url": "referral/binary-tree",
+  "controller": "TreeView",
+  "action": "Index"
+ },
+ {
+  "url": "referral/TQzVrV0o3J2c2FmEZnQtYQ==first-phase",
+  "controller": "FirstPhaseTreeView",
+  "action": "Index"
+ },
+ {
+  "url": "referral/TQzVrV0o3J2c2FmEZnQtYQ==second-phase",
+  "controller": "SecondPhaseTreeView",
+  "action": "Index"
+ },
+ {
+  "url": "referral/TQzVrV0o3J2c2FmEZnQtYQ==third-phase",
+  "controller": "ThirdPhaseTreeView",
+  "action": "Index"
+ },
+ {
+  "url": "referral/TQzVrV0o3J2c2FmEZnQtYQtr==",
+  "controller": "GeneologyDetails",
+  "action": "Index"
+ },
+ {
+  "url": "referral/treeview-mobile",
+  "controller": "treeview_mobile",
+  "action": "Index"
+ },
+ {
+  "url": "referral/package-history",
+  "controller": "PayItForwardList",
+  "action": "Index"
+ },
+ {
+  "url": "referral/G3pAMJ553_slash_EVT87l9cm75NKIzwKMUX4Q",
+  "controller": "Repurchase_History",
+  "action": "Index"
+ },
+ {
+  "url": "referral/aaM_slash_aJlpbxjae0NREHhigGM3dt4ZLDzuB7W_plus_Ly2zE7I=",
+  "controller": "RoyalityRewardEligibility",
+  "action": "Index"
+ },
+ {
+  "url": "referral/aaM_slash_aJlpbxjae0NREHhigGM3dt4ZLDzuB7W_plus_Ly2zE7ILRE=",
+  "controller": "LevelRewardEligibility",
+  "action": "Index"
+ },
+ {
+  "url": "referral/add-new-referral",
+  "controller": "AddNewCommunity",
+  "action": "referrel_signup"
+ },
+ {
+  "url": "referral/support-request/{Ticketid}",
+  "controller": "SupportRequest",
+  "action": "ReferralIndex"
+ },
+ {
+  "url": "referral/2LnlbAZTWFEnTaskcUxhPvG2Cw==",
+  "controller": "MemberTaskList",
+  "action": "Index"
+ },
+ {
+  "url": "referral/itjM5Fo_slash_4uJx2u_slash_GuLWuegromotereferral==",
+  "controller": "PromoteReferral",
+  "action": "Index"
+ },
+ {
+  "url": "referral/Sponsor-Trade-Report",
+  "controller": "Sponsor_Trade_Report",
+  "action": "Index"
+ },
+ {
+  "url": "referral/yyrFqtvQ6VoQj_slash_mcpQqYhIlr2h_plus__plus__slash_07g",
+  "controller": "Sponsor_Leadership",
+  "action": "Index"
+ },
+ {
+  "url": "referral/F83lClf5QCYJxYsrypa3kA==",
+  "controller": "Discount_Income",
+  "action": "Index"
+ },
+ {
+  "url": "referral/Home",
+  "controller": "Home",
+  "action": "Index"
+ },
+ {
+  "url": "referral/iMytKN79ISI6wPayItForward_ForAnroidTKFiBFojQ==",
+  "controller": "Link_ForAnroid",
+  "action": "PayItForward_ForAnroid"
+ },
+ {
+  "url": "referral/iMytKN79ISI6wSecurity_ForAnroidTKFiBFojQ==",
+  "controller": "Link_ForAnroid",
+  "action": "Security_ForAnroid"
+ },
+ {
+  "url": "referral/iMytKN79ISI6wNewDeposit_ForAnroidTKFiBFojQ==",
+  "controller": "Link_ForAnroid",
+  "action": "NewDeposit_ForAnroid"
+ },
+ {
+  "url": "referral/iMytKN79ISI6wTransfer_EWallet_ForAnroidTKFiBFojQ==",
+  "controller": "Link_ForAnroid",
+  "action": "Transfer_EWallet_ForAnroid"
+ },
+ {
+  "url": "referral/iMytKN79ISI6wUpgradePackage_ForAnroidKFiBFojQ==",
+  "controller": "Link_ForAnroid",
+  "action": "UpgradePackage_ForAnroid"
+ },
+ {
+  "url": "referral/iMytKN79ISI6wMyTree_ForAnroidKFiBFojQ==",
+  "controller": "Link_ForAnroid",
+  "action": "MyTree_ForAnroid"
+ },
+ {
+  "url": "referral/iMytKN79ISI6wCommssionWalletTransfer_ForAnroidKFiBFojQ==",
+  "controller": "Link_ForAnroid",
+  "action": "CommssionWalletTransfer_ForAnroid"
+ },
+ {
+  "url": "referral/iMytKN79ISI6wBTCWithdrawal_ForAnroidKFiBFojQ==",
+  "controller": "Link_ForAnroid",
+  "action": "BTCWithdrawal_ForAnroid"
+ },
+ {
+  "url": "referral/iMytKN79ISI6wBankWithdrawal_ForAnroidKFiBFojQ==",
+  "controller": "Link_ForAnroid",
+  "action": "BankWithdrawal_ForAnroid"
+ },
+ {
+  "url": "referral/iMytKN79ISI6wCOINWithdrawal_ForAnroidKFiBFojQ==",
+  "controller": "Link_ForAnroid",
+  "action": "COINWithdrawal_ForAnroid"
+ },
+ {
+  "url": "referral/iMytKN79ISI6wETHWithdrawal_ForAnroidKFiBFojQ==",
+  "controller": "Link_ForAnroid",
+  "action": "ETHWithdrawal_ForAnroid"
+ },
+ {
+  "url": "referral/iMytKN79ISI6wInvicesforpackagepurchaselistKFiBFojQ==",
+  "controller": "Link_ForAnroid",
+  "action": "Invicesforpackagepurchaselist"
+ },
+ {
+  "url": "referral/security",
+  "controller": "separte_ga",
+  "action": "Index"
+ },
+ {
+  "url": "referral/separte_ga_mobile",
+  "controller": "separte_ga_mobile",
+  "action": "Index"
+ },
+ {
+  "url": "referral/wFWmFmY5FESkOAq1tRplAQ==",
+  "controller": "Change_Password",
+  "action": "Index"
+ },
+ {
+  "url": "referral/Shopper-Reward-income-report",
+  "controller": "Shopper_Reward",
+  "action": "Index"
+ },
+ {
+  "url": "referral/Leadership-Income-report",
+  "controller": "Leadership_Income",
+  "action": "Index"
+ },
+ {
+  "url": "referral/Travel-Voucher-income-report",
+  "controller": "Travel_Voucher",
+  "action": "Index"
+ },
+ {
+  "url": "referral/Vehicle-Voucher-income-report",
+  "controller": "Vehicle_Voucher",
+  "action": "Index"
+ },
+ {
+  "url": "referral/House-Voucher-income-report",
+  "controller": "House_Voucher",
+  "action": "Index"
+ },
+ {
+  "url": "referral/Royalty-Reward-income-report",
+  "controller": "Royalty_Reward",
+  "action": "Index"
+ },
+ {
+  "url": "referral/my-downline",
+  "controller": "MyDownline",
+  "action": "Index"
+ },
+ {
+  "url": "referral/node-auto-purchase",
+  "controller": "NodeMyDownline",
+  "action": "Index"
+ },
+ {
+  "url": "referral/All-News-Show",
+  "controller": "All_News_Show",
+  "action": "Index"
+ },
+ {
+  "url": "referral/wallet",
+  "controller": "Wallet",
+  "action": "Index"
+ },
+ {
+  "url": "referral/i-wallet",
+  "controller": "IWallet",
+  "action": "Index"
+ },
+ {
+  "url": "referral/tFmPloq9iOQwsR1hKDtbKLBlzPSCUPW0URetX0B0NTU=",
+  "controller": "PurchaseCoinForHoldNew",
+  "action": "Index"
+ },
+ {
+  "url": "referral/Hgg5NUlqddIbPWWevserkQ==",
+  "controller": "Withdrawal",
+  "action": "Index"
+ },
+ {
+  "url": "referral/Withdrawal-Mobile",
+  "controller": "WithdrawalMobile",
+  "action": "Index"
+ },
+ {
+  "url": "referral/fA29VDOZz8QbcUTzEgAgBg==",
+  "controller": "Get_HelpRequest",
+  "action": "Index"
+ },
+ {
+  "url": "referral/zSALPzrsxdh5jOGEbuKDkw==",
+  "controller": "ETHWithdrawal",
+  "action": "Index"
+ },
+ {
+  "url": "referral/AbNkEAlWVO7ysaKrSmu15lISTBVvezU_plus_",
+  "controller": "BankAccountWithdraw",
+  "action": "Index"
+ },
+ {
+  "url": "referral/bank-withdrawal",
+  "controller": "BankWithdraw",
+  "action": "Index"
+ },
+ {
+  "url": "referral/YJqJLL7sPXKFtrHEt9w4TA==",
+  "controller": "Coin_Withdrawal",
+  "action": "Index"
+ },
+ {
+  "url": "referral/my-profile/{profile_type}",
+  "controller": "My_Profile",
+  "action": "ReferralIndex"
+ },
+ {
+  "url": "referral/my-profile",
+  "controller": "My_Profile",
+  "action": "ReferralIndex"
+ },
+ {
+  "url": "referral/member-bank-details",
+  "controller": "MemberBanksDetails",
+  "action": "Index"
+ },
+ {
+  "url": "referral/my-customer-list",
+  "controller": "MyCustomerList",
+  "action": "Index"
+ },
+ {
+  "url": "Logout",
+  "controller": "Logout",
+  "action": "Index"
+ },
+ {
+  "url": "shop",
+  "controller": "Product",
+  "action": "AllProduct"
+ },
+ {
+  "url": "referral/tlJCMfGMKLIZLcyQtkL5uQ==",
+  "controller": "Getntreeview",
+  "action": "Index"
+ },
+ {
+  "url": "referral/quRzNsiCTpKk_slash_l1KaFEkbXmvgKKKEr0L",
+  "controller": "Withdrawal_History",
+  "action": "Index"
+ },
+ {
+  "url": "referral/f0XZklY5Flxi_plus_BubT6fQFk_plus__slash_xZ9qgVco",
+  "controller": "ETH_Withdrawal_History",
+  "action": "Index"
+ },
+ {
+  "url": "referral/quRzNsiCTpI0X_plus_kAhbmx9WImitjHyXW6",
+  "controller": "CoinWithdrawal_History",
+  "action": "Index"
+ },
+ {
+  "url": "referral/bank-withdrawal-history",
+  "controller": "Bank_Withdrawal_History",
+  "action": "Index"
+ },
+ {
+  "url": "referral/_plus_REmfMkcQ_slash_aosdfgtrMq2uJTCWe42ffoxk5VFspk",
+  "controller": "Agreement",
+  "action": "Index"
+ },
+ {
+  "url": "referral/2LnlbAZTWFEncU5dgdcbbxhPvG2Cw==",
+  "controller": "Upload_Aggrement",
+  "action": "Index"
+ },
+ {
+  "url": "referral/InvoicesFranchise",
+  "controller": "InvoicesFranchise",
+  "action": "Index"
+ },
+ {
+  "url": "referral/purchase-coin-for-hold",
+  "controller": "PurchaseCoinForHold",
+  "action": "Index"
+ },
+ {
+  "url": "referral/cxy1VCGr5YOMslJB0cZseAMyl!st",
+  "controller": "MyProduct",
+  "action": "Index"
+ },
+ {
+  "url": "referral/cxy1VCGr5YOMslJB0cZseAhisH",
+  "controller": "ProductHistory",
+  "action": "Index"
+ },
+ {
+  "url": "referral/Shopping-Cart",
+  "controller": "ShoppingCard",
+  "action": "Index"
+ },
+ {
+  "url": "referral/Provide-Help",
+  "controller": "Provide_Help",
+  "action": "Index"
+ },
+ {
+  "url": "referral/f3E2AmCR3gE=",
+  "controller": "Admin_Direct_MembersPanel",
+  "action": "Index"
+ },
+ {
+  "url": "referral/Get-Help",
+  "controller": "Get_Help",
+  "action": "Index"
+ },
+ {
+  "url": "referral/Wi3n3r0P5aUrCPvp3Z0ohPgfdgfH==",
+  "controller": "ProvideHelp_History",
+  "action": "Index"
+ },
+ {
+  "url": "referral/Wi3n3r0P5aUrCPvp3Z0ohPgfdgfHABC==",
+  "controller": "PH_HIstory_All",
+  "action": "Index"
+ },
+ {
+  "url": "referral/Wi3n3r0P5aUrCPvp3Z0ohGkkkkkH==",
+  "controller": "GetHelp_History",
+  "action": "Index"
+ },
+ {
+  "url": "referral/sVXIBiDIdcV89aVA1RaqpNZSn1tGFp7W==",
+  "controller": "KYC_UploadWithDetail",
+  "action": "Index"
+ },
+ {
+  "url": "referral/mCj7sN_slash_IqXjeh1ft5hNh5A==",
+  "controller": "Change_Username",
+  "action": "Index"
+ },
+ {
+  "url": "referral/aAaSW_slash__slash_IWmJ0xN4IBNV6xA==",
+  "controller": "Force_Matrix_Tree",
+  "action": "Index"
+ },
+ {
+  "url": "referral/auto-repurchase-tree",
+  "controller": "Auto_Matrix_Tree",
+  "action": "Index"
+ },
+ {
+  "url": "referral/auto-purchase-tree",
+  "controller": "Auto_Matrix_Tree_Re_Joining",
+  "action": "Index"
+ },
+ {
+  "url": "referral/auto-gernation-tree",
+  "controller": "Auto_Generation_Tree",
+  "action": "Index"
+ },
+ {
+  "url": "product-list",
+  "controller": "Website_Products_Iframe",
+  "action": "Index"
+ },
+ {
+  "url": "{controller}/{action}/{id}",
+  "controller": "visitor_signup",
+  "action": "referrel_login"
+ }
+]

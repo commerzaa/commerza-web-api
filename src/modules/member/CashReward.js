@@ -1,0 +1,48 @@
+'use strict';
+// Ported from Member/Common/Controllers/CustomerPanel/CashReward.cs  (CashRewardController, 1 action)
+// DB: Member DataBaseContext = Db_Affiliate => 'affiliate'
+const express = require('express');
+const router = express.Router();
+const { proc } = require('../../db');
+const { auth } = require('../../middleware/auth');
+const asyncHandler = require('../../middleware/asyncHandler');
+const { mapRows } = require('../../utils/shape');
+const UtilityClass = require('../../lib/member/UtilityClass');
+
+const DB = 'affiliate';
+const BASE = '/member/CashReward';
+const PROPS = ['TCRMID', 'LoginId', 'REGNO', 'FromDate', 'ToDate', 'AnnounaceDate', 'UserName', 'Name', 'RewardATC', 'NoOfDownlineMember', 'Status', 'QualificationLevel', 'Active', 'QualifyDate'];
+const nn = (v) => (v === undefined || v === null ? '' : String(v));
+const toInt = (v) => { if (v === undefined || v === null || v === '') return null; const n = parseInt(v, 10); return Number.isNaN(n) ? null : n; };
+async function errInsert(req, name, e) {
+  try { const DataUtility = require('../../lib/member/DataUtility'); await new DataUtility().ErrorInsert(0, e && e.message, name, 0, req.path); } catch (_) { /* ErrorInsert must never throw */ }
+}
+
+// Index(int? page, string fromDate, string toDate)  [SessionExpireCheck]
+// route-config: referral/cash-reward
+// auth
+router.all([`${BASE}/Index{/:id}`, BASE, '/member/referral/cash-reward'], auth, asyncHandler(async (req, res) => {
+  const MaxRows = 50;
+  let page = toInt(req.p.page);
+  if (page === null) page = 1;
+  const fromDate = nn(req.p.fromDate);
+  const toDate = nn(req.p.toDate);
+  let Obj = [];
+  const ViewBag = {};
+  try {
+    const Plid = Number(req.user.plid);
+    Obj = mapRows(await proc(DB, 'usp_cashreward', { plid: Plid }), PROPS);
+    ViewBag.fromDate = fromDate;
+    ViewBag.toDate = toDate;
+    ViewBag.CurrentPage = page;
+    ViewBag.GridPageSize = MaxRows;
+    ViewBag.TotalRecord = 0;
+    ViewBag.NoPerPage = await UtilityClass.GridNumbersPerPage();
+  } catch (Exp) {
+    await errInsert(req, 'Usp_CashReward', Exp);
+    return res.json({ redirect: '/page-not-found' });
+  }
+  res.json({ view: '~/Views/CustomerPanel/CashReward/Index.cshtml', Model: Obj, ViewBag });
+}));
+
+module.exports = router;

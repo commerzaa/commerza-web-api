@@ -1,0 +1,50 @@
+'use strict';
+/** Ported from Member\Common\Controllers\CustomerPanel\Force_Matrix_Genology_WithoutWCL.cs (Force_Matrix_Genology_WithoutWCLController) */
+const express = require('express');
+const { query, queryOne, scalar, proc, procOne } = require('../../db');
+const { mapRow, mapRows } = require('../../utils/shape');
+const { auth } = require('../../middleware/auth');
+const asyncHandler = require('../../middleware/asyncHandler');
+const sessionStore = require('../../utils/sessionStore');
+const DataUtility = require('../../lib/member/DataUtility');
+const UtilityClass = require('../../lib/member/UtilityClass');
+
+const router = express.Router();
+const DB = 'affiliate';
+const P = '/member/Force_Matrix_Genology_WithoutWCL';
+
+const str = (v) => (v === null || v === undefined ? '' : String(v));
+const intOrNull = (v) => { if (v === undefined || v === null || v === '') return null; const n = parseInt(v, 10); return Number.isNaN(n) ? null : n; };
+const numIfNumeric = (v) => (v !== undefined && v !== null && v !== '' && !Number.isNaN(Number(v)) ? Number(v) : v);
+async function ErrorInsert(e, name, req) {
+  try { await new DataUtility().ErrorInsert(0, e.message, name, 0, req.path); } catch (_) { /* ignore */ }
+}
+// PORT-NOTE: OUT params (@TotalCount ...) of paged procedures are read from the result columns of the proc rows (totalcount).
+const outCol = (rows, name) => (rows.length && rows[0][name] !== undefined && rows[0][name] !== null ? rows[0][name] : null);
+const totalOf = (rows) => { const t = outCol(rows, 'totalcount'); return t === null || String(t) === '' ? 0 : parseInt(t, 10); };
+const P_TREE = ['REGNO','LoginId','Name','USERNAME','SPONSOR','ImageName','Regdate','PPV','PDAP','INTRO_REFID','PLID','TotalDirectCount','TotalReferralCount','Membername','Activationdate','MOBILE','EMAILID','ACTIVE','STATUS','Downlinecount','RANKID'];
+
+// route-config: referral/8FTN_plus_WYOT_slash_Udq91TGGenologyJMNm_slash_fzMy5u1tRa
+// auth
+router.all([`${P}/Index{/:id}`, '/member/referral/8FTN_plus_WYOT_slash_Udq91TGGenologyJMNm_slash_fzMy5u1tRa'], auth, asyncHandler(async (req, res) => {
+  const Plid = Number(req.user.plid);
+  let loginId = req.p.loginId;
+  let Mode = 0; // eslint-disable-line no-unused-vars
+  if (loginId === undefined || loginId === null) { loginId = ''; Mode = 6; }
+  if (loginId !== '') Mode = 7;
+  const ForceMatrix_Fileview = mapRows(await proc(DB, 'usp_genealogy_forcematrix', { plid: Plid, username: loginId, mode: 1 }), P_TREE);
+  res.json({ Model: ForceMatrix_Fileview, ViewBag: { RegNo: Plid } });
+}));
+
+// auth
+router.all(`${P}/Gettreeview{/:id}`, auth, asyncHandler(async (req, res) => {
+  res.json(mapRows(await proc(DB, 'usp_genealogy_forcematrix', { plid: numIfNumeric(req.p.RegNo), username: '', mode: 2 }), P_TREE));
+}));
+
+// auth
+router.all(`${P}/Getparticularmember{/:id}`, auth, asyncHandler(async (req, res) => {
+  // legacy passed @REGNO (not @PLID) here
+  res.json(mapRows(await proc(DB, 'usp_genealogy_forcematrix', { regno: 0, username: req.p.username, mode: 3 }), P_TREE));
+}));
+
+module.exports = router;
