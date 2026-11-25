@@ -145,6 +145,18 @@ module.exports = {
     GatewayRazorpayKeyId: env.GATEWAY_RAZORPAY_KEY_ID || '',
     GatewayRazorpayKeySecret: env.GATEWAY_RAZORPAY_KEY_SECRET || '',
     SmsJustPassword: env.SMSJUST_PASSWORD || '',
+    // MLM admin panel (src/modules/admin, src/lib/admin): values were hard-coded in the legacy C#; supply them via env
+    IpInfoDbApiKey: env.IPINFODB_API_KEY || '',
+    AdminLoginUrl: env.ADMIN_LOGIN_URL || '',
+    DynamicPagging: env.DYNAMIC_PAGGING || '100', // legacy Web.config value
+    CryptoInboxMailUser: env.CRYPTO_INBOX_MAIL_USER || '',
+    CryptoInboxMailPassword: env.CRYPTO_INBOX_MAIL_PASSWORD || '',
+    CryptoInboxMailHost: env.CRYPTO_INBOX_MAIL_HOST || '',
+    CryptoInboxMailFrom: env.CRYPTO_INBOX_MAIL_FROM || '',
+    TextMailUser: env.TEXT_MAIL_USER || '',
+    TextMailPassword: env.TEXT_MAIL_PASSWORD || '',
+    TextMailHost: env.TEXT_MAIL_HOST || '',
+    TextMailFrom: env.TEXT_MAIL_FROM || '',
     WalletAPIURL: env.WALLET_API_URL || '',
     EsPayAESKey: env.ESPAY_AES_KEY || '',
     SMPT_HOST: env.SMTP_HOST || '',
