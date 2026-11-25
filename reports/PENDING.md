@@ -1,0 +1,456 @@
+# Pending port work: C:\Users\MY ASUS\cluster
+
+Written for: the project owner. Status on 2026-11-25. Porting was paused after admin batch 10.
+
+## Summary
+
+| Legacy app | Controllers | Ported | Pending |
+|---|---|---|---|
+| ClusterOfferAPI | 29 | 29 | 0 |
+| Member | 302 | 302 | 0 |
+| Franchise | 184 | 184 | 0 |
+| Shoping Portal Merchant Panel | 120 | 120 | 0 |
+| Payment Gateway (Shoping Portal Payment Gateway) | 3 | 3 | 0 |
+| MLM_Adminpanel | 497 (6 empty files) | 341 | **149** |
+| ClusterofferShopingPortal | 259 | 0 | **259** (plus 275 support classes) |
+
+"Ported" means every C# method exists in the JS and every module loads. None of it has been run against a database yet.
+
+Ported files use kebab-case names (`add_Admin_Role.cs` -> `src/modules/admin/add-admin-role.js`). `scripts/module-name-map.json` maps every legacy file to its JS file. Names below are the legacy C# names.
+
+## 1. MLM_Adminpanel: 149 controllers pending
+
+Source: `MLM_Adminpanel\Common\Controllers`. Libraries (`src/lib/admin`) and login are done. 16 controllers finished by batches 11-12 before they were stopped (OrderPaymentConformation, OrderPaymentPending, Pair_Income_SlabController, Payout_Reports, Payout_Statement, PayoutReportController, Pending_Kyc, Pending_KycNotallply, Pending_Links, Pendingkyc, PendingMemberKYC, PeofileUpdateController, PerformanceBonus, Process_Links, ROI_Level_Income_SlabController, Rollup_Income_Slab) pass the method check but did not get the agents' final review.
+
+- OverallEarning_Report
+- OverAllEarningsController
+- Package_Binary_Setting
+- PackageDeliverySlip
+- Packed_Order
+- Payit_Forword_List
+- Paymode_Setting
+- Pending_Payout
+- Pending_RequestController
+- Pending_Withdrawals
+- Popup_news
+- Product_Purchase
+- ProductList
+- ProductManagement
+- Profile_Update_History
+- Promotion_Email
+- Promotional_SMS
+- Purchase_Bill
+- PurchaseBV
+- PurchasedBill
+- QCXTokenPrice
+- QuestionerAndAnswerController
+- QuestionListController
+- Rank_Reward
+- Recieved_BTC_Payments
+- ReferralBonus
+- ReferralBonusDetails
+- Refferal_Income_Slab
+- Region_MasterController
+- Registration_Plan_Setting
+- Reject_FranchiseController
+- Rejected_Links
+- RenewableNotification
+- Report_Refrence_For_All_ReportController
+- Repurchase_Income
+- RepurchaseMember_History
+- ResellerProductDetails
+- Reverse_TransactionController
+- ReversedShopping_M_M
+- Reward_Eligibility
+- RewardClaimRequest
+- Rewards_Achiver
+- RightDownLine_Member
+- ROI_SETTINGS
+- ROI_Status
+- ROIRate
+- RollupBonus
+- Royality_AchiverController
+- Royality_Reward_Eligibility_Admin
+- Royality_Statement
+- RoyalityAchivers
+- RoyalityIncome
+- Royalty_Reward
+- SalaryIncome
+- sendMessageToMobile
+- Setting
+- Settingedit
+- Shoping_Statement
+- Shopper_Reward_Setting
+- Shopper_RewardController
+- ShoppingCRDRReport
+- Shoppingwallet_M_M
+- Show_Member_Profile
+- Single_Leg_genology
+- Single_Leg_tree_Wthoutwcl
+- Single_Leg_Tree
+- Single_legtree
+- SingleLeg_Download
+- SlotSettings
+- Smart_Work_IncomeController
+- SmartBonus
+- SMS_History
+- SMS_Master
+- SMS_Schedule_List
+- SMS_Templates
+- Software_Updation
+- Sponcer_Trade
+- Sponsor_Leadership
+- Sponsor_Trade_Slab
+- Stock_LedgerController
+- Stock_Payement_Request
+- Stock_Transfer_M_To_M
+- StockistNotification
+- StockistPincode
+- Store_Delivery_Challan
+- Store_Transfer_Challen
+- subcatmaster
+- SubscriptionRequests
+- TakeImageController
+- TDSReport
+- Team_Building_Bonus
+- Team_Building_Setting
+- Testimonials
+- Text
+- Ticket_Details
+- TicketTakeImageController
+- Timeing_Reward
+- TokenAchiver
+- Topup_History
+- Total_Admin_Charge
+- Training_Tool_Admin
+- TransactionHistory
+- Transfer_Atc_In_Member_Wallet
+- Transfer_Btc_In_Member_Wallet
+- Transfer_Challan
+- TransferedAtcCoin
+- Travel_VoucherController
+- TravelFund
+- TreeIcon
+- TwoFA_Security
+- Unblock_Admin
+- Updated_Btc_History
+- Upgrade_package_List
+- UpgradeLevelIncome
+- UploadOrderDetails
+- UserGrowthBonusDetails
+- UserGrowthLeadershipBonusDetails
+- UserGrowthReferralBonusDetails
+- UserLeadershipBonusDetails
+- UserReferralBonusDetails
+- UserWise_Commissionwallet
+- Userwise_Details_ReportController
+- UserWise_Growthwallet
+- UserWise_Shoppingwallet
+- UserWiseATCWalletFundTransferHistoryController
+- UserWiseATCWalletStatementsController
+- UserWiseIWalletFundTransferHistoryController
+- UserWiseIWalletStatementsController
+- Vehicle_Voucher
+- Vender_List
+- VendorTransactionReportController
+- video_galleryController
+- Visitor_news
+- Wallet_Settings
+- Wallet_status
+- WebSiteCoinRate
+- Withdrawal_History
+- Withdrawal_Report
+- WithdrawalSetting
+- WIthdrawalsUpload
+- XSCOINACCOUNT
+- All_Downline_Member_List_Admin
+- CommonController
+- CustomEncriptionAndDecription
+- FranchiseStatementController
+- HomeController
+- PageNotFoundController
+- SessionExpireCheck
+- UpdateMemberProfileController
+
+## 2. ClusterofferShopingPortal: not started
+
+Use the copy in `ClusterofferShopingPortal\ClusterofferShopingPortal` (newest, May 2026). `bc`, `clusteroffer.com` and `Payment Gateway\clusteroffer.in` are older copies that differ in 2-5 controllers. Database: Db_Shopping.
+
+- Controllers: 259 (about 52,700 lines): 105 in the root folder, 148 in `CustomerPanel`, 6 in `UserPanel`.
+- Support classes (Models, DAL and others): 275 files, about 23,600 lines.
+- Already in the Express app: customer OTP login and addresses (`src/modules/customer-auth.js`), and the shopping endpoints of ClusterOfferAPI (cart, checkout, orders, products).
+
+### Controllers
+
+- AboutUsController
+- AdvertiseAndSellOuter
+- AdvertiseWithUsController
+- AffiliateProductController
+- AffiliateProgramController
+- AllDownlineMemberList
+- AllOuterDealsController
+- AllSellerListController
+- AllServiceJewariaController
+- BmsBlasting
+- BroadBand_Payment
+- Buisness_Plans
+- Bus
+- BusinessDeals
+- BusinessDetailsController
+- BusinessListController
+- BusinessListingController
+- BusinessProfile
+- ByersController
+- COOKIE_POLICY
+- Cart_ListController
+- ClassifiedAdsController
+- CommonController
+- ContactUsController
+- CustomerPanel/APIIntegration
+- CustomerPanel/APISettings
+- CustomerPanel/AccountStatement
+- CustomerPanel/ActivityTeamBonus
+- CustomerPanel/AdAccount
+- CustomerPanel/AdLinksManagement
+- CustomerPanel/AddCampaign
+- CustomerPanel/AddFund
+- CustomerPanel/AddMoneyController
+- CustomerPanel/AddMoney_mobileController
+- CustomerPanel/AddNewCommunity
+- CustomerPanel/AddTicket
+- CustomerPanel/Add_Product
+- CustomerPanel/Address
+- CustomerPanel/Address_Mobile
+- CustomerPanel/AllDeals
+- CustomerPanel/AllEmailsList
+- CustomerPanel/AllMobileList
+- CustomerPanel/AllTickets
+- CustomerPanel/All_News_Show
+- CustomerPanel/All_RechargeService_from_mobileController
+- CustomerPanel/Assign_PinCode
+- CustomerPanel/BillingDetails
+- CustomerPanel/Branch_Ladger
+- CustomerPanel/BuyPack
+- CustomerPanel/BuyPackage
+- CustomerPanel/BuySmsPack
+- CustomerPanel/Bv_Report
+- CustomerPanel/CampaignList
+- CustomerPanel/ChangePassword
+- CustomerPanel/Change_Create_Invoice
+- CustomerPanel/ChatHistory
+- CustomerPanel/Classfied
+- CustomerPanel/ClassifiedAds
+- CustomerPanel/Completed_Recharge
+- CustomerPanel/Completed_Recharge_ReceiptController
+- CustomerPanel/CreateDeal
+- CustomerPanel/CustomerDashBoard
+- CustomerPanel/CustomizeUrl
+- CustomerPanel/Deactivated_Dropdown_List
+- CustomerPanel/DealsOffers
+- CustomerPanel/DelasRequest
+- CustomerPanel/Earnings
+- CustomerPanel/EmailCampaignManagement
+- CustomerPanel/Falied_Recharge
+- CustomerPanel/Feedback
+- CustomerPanel/FreeBusinessKeywords
+- CustomerPanel/FullBrandedUrl
+- CustomerPanel/GenerateCoupon
+- CustomerPanel/IPNRECHARGESTATUSController
+- CustomerPanel/Invoices
+- CustomerPanel/KYCCheck
+- CustomerPanel/KYCController
+- CustomerPanel/KeywordPricing
+- CustomerPanel/LeadFromSystemViaLeadForm
+- CustomerPanel/LeadGenerator 
+- CustomerPanel/LeadershipBonus
+- CustomerPanel/Link_ForAnroid
+- CustomerPanel/Listings
+- CustomerPanel/LiveChat
+- CustomerPanel/MLMWallet
+- CustomerPanel/MLMwalletstatement
+- CustomerPanel/MakePayment
+- CustomerPanel/MakePaymentForPackageController
+- CustomerPanel/ManageBeneficiaryController
+- CustomerPanel/Manage_Attributes
+- CustomerPanel/Manage_Category
+- CustomerPanel/Manage_Dropdown_List
+- CustomerPanel/Manage_Products
+- CustomerPanel/MapLocation
+- CustomerPanel/MerchantCommissionReport
+- CustomerPanel/MerchantPayoutReport
+- CustomerPanel/Merchant_DownloadTemplate
+- CustomerPanel/Merchant_Invoice_List
+- CustomerPanel/Merchant_NonLiveProduct
+- CustomerPanel/Merchant_Sale_Reports
+- CustomerPanel/Merchant_UploadBulkImages
+- CustomerPanel/Merchant_UploadBulkProduct
+- CustomerPanel/MyAds
+- CustomerPanel/MyCommunity
+- CustomerPanel/MyCoupon
+- CustomerPanel/MyCustomerList
+- CustomerPanel/MyDownline
+- CustomerPanel/MyPackages
+- CustomerPanel/MyPayMode
+- CustomerPanel/MyPointEarnings
+- CustomerPanel/MyReferrals
+- CustomerPanel/My_Profile
+- CustomerPanel/NewCustomerDashBoard
+- CustomerPanel/NewsLetterSubscription
+- CustomerPanel/OrderInvoice
+- CustomerPanel/Order_List
+- CustomerPanel/PaidListing
+- CustomerPanel/PartiallyBrandedUrl
+- CustomerPanel/PassbookController
+- CustomerPanel/Passbook_mobileController
+- CustomerPanel/PasscodeController
+- CustomerPanel/PayItForward
+- CustomerPanel/PayItForwardList
+- CustomerPanel/PaymentMethods
+- CustomerPanel/Payout_Statement
+- CustomerPanel/Pending_Recharge
+- CustomerPanel/PhotoGallery
+- CustomerPanel/PostAnAd
+- CustomerPanel/PostShareManagement
+- CustomerPanel/Post_Blog
+- CustomerPanel/Posted_Blog
+- CustomerPanel/Posted_Classfied
+- CustomerPanel/PromoteReferral 
+- CustomerPanel/PurchasePackageController
+- CustomerPanel/PurchasedEmailPackage
+- CustomerPanel/PurchasedSMSPackage
+- CustomerPanel/Purchased_Voucher
+- CustomerPanel/Purchased_Voucher_ReceiptController
+- CustomerPanel/QCUploadBulkProduct
+- CustomerPanel/ReferralBonus
+- CustomerPanel/ReferralDashBoard
+- CustomerPanel/Sale_Reports
+- CustomerPanel/Selling_PinCode
+- CustomerPanel/SendBulkEmailToSystemUsersWithFiltration
+- CustomerPanel/SendBulkMsgToWhatsApp
+- CustomerPanel/SendEmailViaSelfAccount
+- CustomerPanel/SendSmsViaSelfAccount
+- CustomerPanel/SentEmailHistory
+- CustomerPanel/SentSmsHistory
+- CustomerPanel/ServicesHighlights
+- CustomerPanel/SmsCampaignManagement
+- CustomerPanel/Sms_ApiSetting
+- CustomerPanel/StatisticalReport
+- CustomerPanel/SubscribeUs
+- CustomerPanel/SubscriptionHistory
+- CustomerPanel/SupportRequest
+- CustomerPanel/TellFriends
+- CustomerPanel/Training
+- CustomerPanel/TransferToBankController
+- CustomerPanel/TransferToBank_mobileController
+- CustomerPanel/TreeView
+- CustomerPanel/UploadEmailData
+- CustomerPanel/UploadMobileData
+- CustomerPanel/User_Category
+- CustomerPanel/Vat_Categories
+- CustomerPanel/VideoGallery
+- CustomerPanel/Wallet
+- CustomerPanel/WorkingHours
+- CustomerPanel/dataset
+- CustomerPanel/kyc_mobileController
+- CustomerPanel/reviews
+- CustomerPanel/view_all_notifications
+- DataCard_Payment
+- Datetime
+- DealsController
+- DealsDetailsController
+- DiamondCertification
+- DirectLoginController
+- DistributerSessionExpireCheck
+- Distribution_Chart
+- Dth_Payment
+- EVouchers
+- EVouchersDetails
+- Electricity_Payment
+- Emailblasting
+- FaqController
+- Forgot_Password
+- Franchise_ModelController
+- Gas_Payment
+- GetAccessToken
+- HomeController
+- IPNController
+- Insurance_Payment
+- InvalidResourceController
+- Knowyourdiamond
+- LandingPageMaster
+- Landline_Payment
+- LeadGenerators
+- Login_as_MobileController
+- Login_as_sso
+- Login_as_yourchoice
+- Logout
+- MarketingToolsController
+- MechanismGrievance
+- OnlineDTHRechargeResponseController
+- OnlineElectricityRechargeResponseController
+- OnlineGASRechargeResponseController
+- OnlineInsuranceRechargeResponseController
+- OnlineOrderResponseController
+- OnlinePayment
+- OnlinePaymentResponseController
+- OnlinePrepaidRechargeResponseController
+- OnlineRechargeResponseController
+- Orboarding_FeeController
+- OrderComplete
+- OrderDirectLoginController
+- OuterBusinessKeywords
+- OuterFreeBusinessKeywords
+- OuterPages
+- PageNotFoundController
+- PoliciesController
+- Pricing
+- PrivacyPolicyController
+- Proceed_To_CheckOutController
+- Product
+- Product_Detail
+- PromosAndAdvertisement
+- RESTRICTED_AND_PROHIBITEDITEMS
+- ReferralOuterController
+- ReferralProgramController
+- ReturnPlicyController
+- Route
+- SearchNotFoundController
+- SiteMapController
+- SocialMediaPromo
+- Support
+- SurfNowController
+- TermofuseController
+- TraffficBoosterController
+- Train
+- UserPanel/BANK_ACCOUNTS_MERCHANT
+- UserPanel/Business_KYC
+- UserPanel/Member_Profile
+- UserPanel/Orders
+- UserPanel/Proceed_To_Payment
+- UserPanel/Wishlist
+- VisitorConfirmation
+- VisitorSignupController
+- WebSiteBuilderController
+- WhatIsEblaaController
+- WhatsappMarketing
+- business_plan
+- flight
+- paymentinforamtion
+- ringsizer
+- servicejewariaController
+- servicejewaria_MobileController
+- termandcondition
+- video_gallery
+
+## 3. Library file names
+
+`src/lib/**` still uses the legacy class names (e.g. `UtilityClass.js`). Rename them to kebab-case in one pass after the remaining ports, using the same before/after route check as the module rename.
+
+## 4. Not code, but needed before go-live
+
+1. Fill in `.env`: PostgreSQL connections, JWT secret, encryption key, and the credentials that were hard-coded in the old code (PayU, Razorpay, SMS, SMTP, ShipRocket, IP lookup, admin mail accounts).
+2. Run everything against a copy of the database. No SQL has been executed yet.
+3. Rotate every credential that was in the legacy Web.config files and code.
+4. Decide the security items raised during the port: password-only store login, decrypted passwords shown to admins, SMTP passwords on the Email Account page, block.io key in an error message, payment-gateway SaveData, master OTP code.
+5. Some stored procedures are missing from the SQL dumps and must exist in PostgreSQL (e.g. usp_Fund_Recieve_From_Agency, Usp_TransferFundToUser, usp_All_FundsTransfer_history, Usp_Get_Help, USP_MANAGEGATEWAYRESPONSE).
+6. Load the seed data: `database/seed_country_state.sql` (db_shopping) and `database/seed_country_state_affiliate.sql` (db_affiliate).
