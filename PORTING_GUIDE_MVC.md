@@ -34,8 +34,13 @@ Schema dumps: `d:\old commerza\db\dbshopping.sql`, `d:\old commerza\db\affilate.
      (`url: "franchisee/order-List"` -> `/<prefix>/<url>` mapped to the controller/action named there). Put a `// route-config` comment.
    - `[Route("...")]` attributes keep their paths under `/<prefix>/`.
    - Action method name casing is kept as in C#; params via `req.p` (case-insensitive) exactly like the API port.
-4. **Files & modules.** One controller file `X.cs` -> `src/modules/<prefix>/<X>.js` exporting an `express.Router()`
-   (no `.router` wrapper). `src/modules/<prefix>.js` (written by the coordinator, do not write) mounts every file in that folder.
+4. **Files & modules.** One controller file `X.cs` -> `src/modules/<prefix>/<x-in-kebab-case>.js` exporting an `express.Router()`
+   (no `.router` wrapper). File names are kebab-case: drop a trailing `Controller`, split words at underscores, spaces and
+   case changes, lower-case everything (`Add_Member_Panel_SubMenu.cs` -> `add-member-panel-sub-menu.js`,
+   `KYCAdminController.cs` -> `kyc-admin.js`, `NewPerformanceBonus - Copy.cs` -> `new-performance-bonus-copy.js`). Helpers
+   private to a folder go in `_shared/` with kebab-case names too. Start every file with `// Ported from <legacy path>.cs`
+   and add the mapping `"<prefix>/<X>.js": "<prefix>/<kebab>.js"` to `scripts/module-name-map.json` (used by
+   `scripts/check-coverage.js`). Route URLs are NOT affected by the file name: they keep the legacy controller/action names. `src/modules/<prefix>.js` (written by the coordinator, do not write) mounts every file in that folder.
    Do not write anywhere outside `src/modules/<prefix>/` except as stated in your assignment.
 5. **Libs.** The app's non-controller C# (DAL, Models helpers, UtilityClass...) is ported by lib agents to
    `src/lib/<prefix>/<OriginalName>.js` (same class/method names, PascalCase, same signatures). Require them as
