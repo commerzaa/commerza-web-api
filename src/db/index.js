@@ -31,7 +31,7 @@ function getPool(name) {
   if (!pools[name]) {
     const c = config.pg[name];
     if (!c) throw new Error(`Unknown database "${name}" (use 'affiliate' or 'shopping')`);
-    pools[name] = new Pool({ ...c, max: config.pg.max, ssl: config.pg.ssl });
+    pools[name] = new Pool({ ...c, max: config.pg.max, ssl: config.pg.ssl, options: '-c search_path=dbo,public' });
     pools[name].on('error', (e) => console.error(`[pg:${name}] idle client error`, e.message));
   }
   return pools[name];
