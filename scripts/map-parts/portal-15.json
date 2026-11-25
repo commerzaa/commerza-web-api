@@ -1,0 +1,6 @@
+{
+  "portal/VisitorSignupController.js": "portal/visitor-signup.js",
+  "portal/WebSiteBuilderController.js": "portal/web-site-builder.js",
+  "portal/WhatIsEblaaController.js": "portal/what-is-eblaa.js",
+  "portal/WhatsappMarketing.js": "portal/whatsapp-marketing.js"
+}

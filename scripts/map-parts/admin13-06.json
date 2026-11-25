@@ -1,0 +1,16 @@
+{
+  "admin/Settingedit.js": "admin/settingedit.js",
+  "admin/Shoping_Statement.js": "admin/shoping-statement.js",
+  "admin/Shopper_Reward_Setting.js": "admin/shopper-reward-setting.js",
+  "admin/Shopper_RewardController.js": "admin/shopper-reward.js",
+  "admin/ShoppingCRDRReport.js": "admin/shopping-crdr-report.js",
+  "admin/Shoppingwallet_M_M.js": "admin/shoppingwallet-m-m.js",
+  "admin/Show_Member_Profile.js": "admin/show-member-profile.js",
+  "admin/Single_Leg_genology.js": "admin/single-leg-genology.js",
+  "admin/Single_Leg_tree_Wthoutwcl.js": "admin/single-leg-tree-wthoutwcl.js",
+  "admin/Single_Leg_Tree.js": "admin/single-leg-tree.js",
+  "admin/Single_legtree.js": "admin/single-legtree.js",
+  "admin/SingleLeg_Download.js": "admin/single-leg-download.js",
+  "admin/SlotSettings.js": "admin/slot-settings.js",
+  "admin/Smart_Work_IncomeController.js": "admin/smart-work-income.js"
+}

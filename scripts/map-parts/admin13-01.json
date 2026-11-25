@@ -1,0 +1,11 @@
+{
+  "admin/OverallEarning_Report.js": "admin/overall-earning-report.js",
+  "admin/OverAllEarningsController.js": "admin/over-all-earnings.js",
+  "admin/Package_Binary_Setting.js": "admin/package-binary-setting.js",
+  "admin/PackageDeliverySlip.js": "admin/package-delivery-slip.js",
+  "admin/Packed_Order.js": "admin/packed-order.js",
+  "admin/Payit_Forword_List.js": "admin/payit-forword-list.js",
+  "admin/Paymode_Setting.js": "admin/paymode-setting.js",
+  "admin/Pending_Payout.js": "admin/pending-payout.js",
+  "admin/Pending_RequestController.js": "admin/pending-request.js"
+}

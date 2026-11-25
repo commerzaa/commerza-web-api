@@ -1,0 +1,10 @@
+{
+  "portal/OuterFreeBusinessKeywords.js": "portal/outer-free-business-keywords.js",
+  "portal/OuterPages.js": "portal/outer-pages.js",
+  "portal/PageNotFoundController.js": "portal/page-not-found.js",
+  "portal/paymentinforamtion.js": "portal/paymentinforamtion.js",
+  "portal/PoliciesController.js": "portal/policies.js",
+  "portal/Pricing.js": "portal/pricing.js",
+  "portal/PrivacyPolicyController.js": "portal/privacy-policy.js",
+  "portal/Proceed_To_CheckOutController.js": "portal/proceed-to-check-out.js"
+}

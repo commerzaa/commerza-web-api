@@ -1,0 +1,16 @@
+{
+  "admin/TravelFund.js": "admin/travel-fund.js",
+  "admin/TreeIcon.js": "admin/tree-icon.js",
+  "admin/TwoFA_Security.js": "admin/two-fa-security.js",
+  "admin/Unblock_Admin.js": "admin/unblock-admin.js",
+  "admin/Updated_Btc_History.js": "admin/updated-btc-history.js",
+  "admin/Upgrade_package_List.js": "admin/upgrade-package-list.js",
+  "admin/UpgradeLevelIncome.js": "admin/upgrade-level-income.js",
+  "admin/UploadOrderDetails.js": "admin/upload-order-details.js",
+  "admin/UserGrowthBonusDetails.js": "admin/user-growth-bonus-details.js",
+  "admin/UserGrowthLeadershipBonusDetails.js": "admin/user-growth-leadership-bonus-details.js",
+  "admin/UserGrowthReferralBonusDetails.js": "admin/user-growth-referral-bonus-details.js",
+  "admin/UserLeadershipBonusDetails.js": "admin/user-leadership-bonus-details.js",
+  "admin/UserReferralBonusDetails.js": "admin/user-referral-bonus-details.js",
+  "admin/UserWise_Commissionwallet.js": "admin/user-wise-commissionwallet.js"
+}

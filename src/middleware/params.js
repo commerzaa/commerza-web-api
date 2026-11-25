@@ -25,5 +25,21 @@ function build(req) {
   });
 }
 
-module.exports = (req, _res, next) => { req.p = build(req); next(); };
+// req.p is built lazily: this middleware runs before routing (req.params still empty) and before route-level
+// parsers such as multer (req.body not yet filled). Rebuild whenever the params/body objects change
+// (req.query is not compared: in Express 5 it is a getter returning a fresh object on every read).
+module.exports = (req, _res, next) => {
+  let cache = null, seen = [];
+  Object.defineProperty(req, 'p', {
+    configurable: true,
+    enumerable: true,
+    get() {
+      const now = [this.params, this.body];
+      if (!cache || now.some((o, i) => o !== seen[i])) { cache = build(this); seen = now; }
+      return cache;
+    },
+    set(v) { cache = v; seen = [this.params, this.body]; },
+  });
+  next();
+};
 module.exports.build = build;

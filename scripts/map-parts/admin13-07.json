@@ -1,0 +1,17 @@
+{
+  "admin/SmartBonus.js": "admin/smart-bonus.js",
+  "admin/SMS_History.js": "admin/sms-history.js",
+  "admin/SMS_Master.js": "admin/sms-master.js",
+  "admin/SMS_Schedule_List.js": "admin/sms-schedule-list.js",
+  "admin/SMS_Templates.js": "admin/sms-templates.js",
+  "admin/Software_Updation.js": "admin/software-updation.js",
+  "admin/Sponcer_Trade.js": "admin/sponcer-trade.js",
+  "admin/Sponsor_Leadership.js": "admin/sponsor-leadership.js",
+  "admin/Sponsor_Trade_Slab.js": "admin/sponsor-trade-slab.js",
+  "admin/Stock_LedgerController.js": "admin/stock-ledger.js",
+  "admin/Stock_Payement_Request.js": "admin/stock-payement-request.js",
+  "admin/Stock_Transfer_M_To_M.js": "admin/stock-transfer-m-to-m.js",
+  "admin/StockistNotification.js": "admin/stockist-notification.js",
+  "admin/StockistPincode.js": "admin/stockist-pincode.js",
+  "admin/Store_Delivery_Challan.js": "admin/store-delivery-challan.js"
+}

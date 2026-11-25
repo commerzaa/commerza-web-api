@@ -1,0 +1,14 @@
+{
+  "admin/TicketTakeImageController.js": "admin/ticket-take-image.js",
+  "admin/Timeing_Reward.js": "admin/timeing-reward.js",
+  "admin/TokenAchiver.js": "admin/token-achiver.js",
+  "admin/Topup_History.js": "admin/topup-history.js",
+  "admin/Total_Admin_Charge.js": "admin/total-admin-charge.js",
+  "admin/Training_Tool_Admin.js": "admin/training-tool-admin.js",
+  "admin/TransactionHistory.js": "admin/transaction-history.js",
+  "admin/Transfer_Atc_In_Member_Wallet.js": "admin/transfer-atc-in-member-wallet.js",
+  "admin/Transfer_Btc_In_Member_Wallet.js": "admin/transfer-btc-in-member-wallet.js",
+  "admin/Transfer_Challan.js": "admin/transfer-challan.js",
+  "admin/TransferedAtcCoin.js": "admin/transfered-atc-coin.js",
+  "admin/Travel_VoucherController.js": "admin/travel-voucher.js"
+}

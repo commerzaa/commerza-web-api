@@ -1,0 +1,12 @@
+{
+  "admin/ROIRate.js": "admin/roi-rate.js",
+  "admin/RollupBonus.js": "admin/rollup-bonus.js",
+  "admin/Royality_AchiverController.js": "admin/royality-achiver.js",
+  "admin/Royality_Reward_Eligibility_Admin.js": "admin/royality-reward-eligibility-admin.js",
+  "admin/Royality_Statement.js": "admin/royality-statement.js",
+  "admin/RoyalityAchivers.js": "admin/royality-achivers.js",
+  "admin/RoyalityIncome.js": "admin/royality-income.js",
+  "admin/Royalty_Reward.js": "admin/royalty-reward.js",
+  "admin/SalaryIncome.js": "admin/salary-income.js",
+  "admin/Setting.js": "admin/setting.js"
+}

@@ -1,0 +1,16 @@
+{
+  "admin/PurchasedBill.js": "admin/purchased-bill.js",
+  "admin/QCXTokenPrice.js": "admin/qcx-token-price.js",
+  "admin/QuestionerAndAnswerController.js": "admin/questioner-and-answer.js",
+  "admin/QuestionListController.js": "admin/question-list.js",
+  "admin/Rank_Reward.js": "admin/rank-reward.js",
+  "admin/Recieved_BTC_Payments.js": "admin/recieved-btc-payments.js",
+  "admin/ReferralBonus.js": "admin/referral-bonus.js",
+  "admin/ReferralBonusDetails.js": "admin/referral-bonus-details.js",
+  "admin/Refferal_Income_Slab.js": "admin/refferal-income-slab.js",
+  "admin/Region_MasterController.js": "admin/region-master.js",
+  "admin/Registration_Plan_Setting.js": "admin/registration-plan-setting.js",
+  "admin/Reject_FranchiseController.js": "admin/reject-franchise.js",
+  "admin/Rejected_Links.js": "admin/rejected-links.js",
+  "admin/RenewableNotification.js": "admin/renewable-notification.js"
+}

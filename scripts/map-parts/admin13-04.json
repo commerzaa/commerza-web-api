@@ -1,0 +1,14 @@
+{
+  "admin/Report_Refrence_For_All_ReportController.js": "admin/report-refrence-for-all-report.js",
+  "admin/Repurchase_Income.js": "admin/repurchase-income.js",
+  "admin/RepurchaseMember_History.js": "admin/repurchase-member-history.js",
+  "admin/ResellerProductDetails.js": "admin/reseller-product-details.js",
+  "admin/Reverse_TransactionController.js": "admin/reverse-transaction.js",
+  "admin/ReversedShopping_M_M.js": "admin/reversed-shopping-m-m.js",
+  "admin/Reward_Eligibility.js": "admin/reward-eligibility.js",
+  "admin/RewardClaimRequest.js": "admin/reward-claim-request.js",
+  "admin/Rewards_Achiver.js": "admin/rewards-achiver.js",
+  "admin/RightDownLine_Member.js": "admin/right-down-line-member.js",
+  "admin/ROI_SETTINGS.js": "admin/roi-settings.js",
+  "admin/ROI_Status.js": "admin/roi-status.js"
+}
