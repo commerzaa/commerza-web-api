@@ -153,7 +153,10 @@ async function ensureCommerzaSchema() {
       code VARCHAR(40) UNIQUE NOT NULL,
       name VARCHAR(120) NOT NULL,
       description TEXT NOT NULL DEFAULT '',
+      min_amount NUMERIC(10,2) NOT NULL DEFAULT 0,
+      max_amount NUMERIC(10,2) NOT NULL DEFAULT 0,
       price NUMERIC(10,2) NOT NULL DEFAULT 0,
+      package_type VARCHAR(40) NOT NULL DEFAULT 'Seller',
       duration_days INTEGER NOT NULL DEFAULT 365,
       max_products INTEGER NOT NULL DEFAULT 25,
       local_delivery_allowed BOOLEAN NOT NULL DEFAULT TRUE,
@@ -162,6 +165,59 @@ async function ensureCommerzaSchema() {
       is_active BOOLEAN NOT NULL DEFAULT TRUE,
       sort_order INTEGER NOT NULL DEFAULT 0,
       created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    );
+
+    ALTER TABLE dbo.commerza_packages ADD COLUMN IF NOT EXISTS min_amount NUMERIC(10,2) NOT NULL DEFAULT 0;
+    ALTER TABLE dbo.commerza_packages ADD COLUMN IF NOT EXISTS max_amount NUMERIC(10,2) NOT NULL DEFAULT 0;
+    ALTER TABLE dbo.commerza_packages ADD COLUMN IF NOT EXISTS package_type VARCHAR(40) NOT NULL DEFAULT 'Seller';
+
+    CREATE TABLE IF NOT EXISTS dbo.commerza_master_settings (
+      setting_key VARCHAR(80) PRIMARY KEY,
+      value_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+      updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS dbo.commerza_partner_wallet_tx (
+      id SERIAL PRIMARY KEY,
+      pmid BIGINT NOT NULL,
+      wallet_type VARCHAR(20) NOT NULL DEFAULT 'income',
+      tx_type VARCHAR(20) NOT NULL DEFAULT 'credit',
+      category VARCHAR(40) NOT NULL DEFAULT 'referral_bonus',
+      amount NUMERIC(12,2) NOT NULL DEFAULT 0,
+      source_pmid BIGINT,
+      description TEXT NOT NULL DEFAULT '',
+      status VARCHAR(30) NOT NULL DEFAULT 'completed',
+      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    );
+
+    ALTER TABLE dbo.commerza_partner_wallet_tx
+      ADD COLUMN IF NOT EXISTS wallet_type VARCHAR(20) NOT NULL DEFAULT 'income';
+
+    CREATE TABLE IF NOT EXISTS dbo.commerza_partner_topup_requests (
+      id SERIAL PRIMARY KEY,
+      pmid BIGINT NOT NULL,
+      amount NUMERIC(12,2) NOT NULL DEFAULT 0,
+      payment_method VARCHAR(40) NOT NULL DEFAULT 'upi',
+      transaction_ref VARCHAR(120) NOT NULL DEFAULT '',
+      payment_proof_url TEXT NOT NULL DEFAULT '',
+      notes TEXT NOT NULL DEFAULT '',
+      status VARCHAR(30) NOT NULL DEFAULT 'pending',
+      admin_remark TEXT NOT NULL DEFAULT '',
+      verified_by VARCHAR(120) NOT NULL DEFAULT '',
+      created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS dbo.commerza_partner_withdrawals (
+      id SERIAL PRIMARY KEY,
+      pmid BIGINT NOT NULL,
+      amount NUMERIC(12,2) NOT NULL DEFAULT 0,
+      payout_method VARCHAR(30) NOT NULL DEFAULT 'upi',
+      account_details TEXT NOT NULL DEFAULT '',
+      status VARCHAR(30) NOT NULL DEFAULT 'pending',
+      admin_remark TEXT NOT NULL DEFAULT '',
+      created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMP NOT NULL DEFAULT NOW()
     );
 
     CREATE TABLE IF NOT EXISTS dbo.commerza_partner_subscriptions (
@@ -206,10 +262,36 @@ async function ensureCommerzaSchema() {
       shop_logo_url TEXT NOT NULL DEFAULT '',
       shop_banner_url TEXT NOT NULL DEFAULT '',
       is_profile_completed BOOLEAN NOT NULL DEFAULT FALSE,
+      block_remark TEXT NOT NULL DEFAULT '',
+      kyc_mode VARCHAR(30) NOT NULL DEFAULT 'ONLINE',
+      kyc_photo_status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+      kyc_id_status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+      kyc_tax_status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+      kyc_bank_status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+      kyc_profile_status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+      kyc_all_status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+      kyc_approved_at TIMESTAMP,
+      kyc_remark TEXT NOT NULL DEFAULT '',
       updated_at TIMESTAMP NOT NULL DEFAULT NOW()
     );
+    ALTER TABLE dbo.commerza_shop_details ADD COLUMN IF NOT EXISTS block_remark TEXT NOT NULL DEFAULT '';
+    ALTER TABLE dbo.commerza_shop_details ADD COLUMN IF NOT EXISTS kyc_mode VARCHAR(30) NOT NULL DEFAULT 'ONLINE';
+    ALTER TABLE dbo.commerza_shop_details ADD COLUMN IF NOT EXISTS kyc_photo_status VARCHAR(20) NOT NULL DEFAULT 'PENDING';
+    ALTER TABLE dbo.commerza_shop_details ADD COLUMN IF NOT EXISTS kyc_id_status VARCHAR(20) NOT NULL DEFAULT 'PENDING';
+    ALTER TABLE dbo.commerza_shop_details ADD COLUMN IF NOT EXISTS kyc_tax_status VARCHAR(20) NOT NULL DEFAULT 'PENDING';
+    ALTER TABLE dbo.commerza_shop_details ADD COLUMN IF NOT EXISTS kyc_bank_status VARCHAR(20) NOT NULL DEFAULT 'PENDING';
+    ALTER TABLE dbo.commerza_shop_details ADD COLUMN IF NOT EXISTS kyc_profile_status VARCHAR(20) NOT NULL DEFAULT 'PENDING';
+    ALTER TABLE dbo.commerza_shop_details ADD COLUMN IF NOT EXISTS kyc_all_status VARCHAR(20) NOT NULL DEFAULT 'PENDING';
+    ALTER TABLE dbo.commerza_shop_details ADD COLUMN IF NOT EXISTS kyc_approved_at TIMESTAMP;
+    ALTER TABLE dbo.commerza_shop_details ADD COLUMN IF NOT EXISTS kyc_remark TEXT NOT NULL DEFAULT '';
   `;
   await db.query('shopping', sql);
+
+  // Backfill Unique Partner ID (referalcode) for any existing partners missing one
+  await db.query(
+    'shopping',
+    "UPDATE dbo.portal_login SET referalcode = 'CMZ-P' || pmid::text WHERE COALESCE(TRIM(referalcode), '') = '' AND pmid IS NOT NULL"
+  ).catch(() => { });
 
   // Seed default partner packages if empty
   const pkgCount = await db.scalar('shopping', 'SELECT COUNT(*)::int FROM commerza_packages');

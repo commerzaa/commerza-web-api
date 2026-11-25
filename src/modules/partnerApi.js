@@ -79,7 +79,7 @@ router.post('/api/partner/register', asyncHandler(async (req, res) => {
   await ensureCommerzaSchema();
   const {
     companyName, ownerName, email, phone, password,
-    address = '', pincode = '', areaName = '', description = '',
+    address = '', pincode = '', areaName = '', description = '', referralCode = '',
   } = req.body || {};
 
   if (!companyName || !email || !phone || !password) {
@@ -111,13 +111,29 @@ router.post('/api/partner/register', asyncHandler(async (req, res) => {
     const names = String(ownerName || companyName).trim().split(/\s+/);
     const fname = names[0] || companyName;
     const lname = names.slice(1).join(' ');
+    const myRefCode = `CMZ-P${nextPmid}`;
+
+    let introPlid = null;
+    let refralId = null;
+    if (String(referralCode || '').trim()) {
+      const refRow = await t.queryOne(
+        'SELECT plid, pmid, referalcode FROM portal_login WHERE upper(referalcode) = upper(@rc) LIMIT 1',
+        { rc: String(referralCode).trim() }
+      );
+      if (refRow) {
+        introPlid = Number(refRow.plid);
+        refralId = refRow.referalcode;
+      }
+    }
 
     await t.query(
       `INSERT INTO portal_login
-        (plid, pmid, loginid, password, active, isactive, username, fname, lname, phone, emailid, ismerchantpanelaccepted, doc)
+        (plid, pmid, loginid, password, active, isactive, username, fname, lname, phone, emailid,
+         referalcode, intro_plid, refral_id, ismerchantpanelaccepted, doc)
        VALUES
-        (@plid, @pmid, @email, @password, true, true, @email, @fname, @lname, @phone, @email, 1, NOW())`,
-      { plid: nextPlid, pmid: nextPmid, email, password: encPassword, fname, lname, phone }
+        (@plid, @pmid, @email, @password, true, true, @email, @fname, @lname, @phone, @email,
+         @myRefCode, @introPlid, @refralId, 1, NOW())`,
+      { plid: nextPlid, pmid: nextPmid, email, password: encPassword, fname, lname, phone, myRefCode, introPlid, refralId }
     );
 
     await t.query(
@@ -145,6 +161,7 @@ router.post('/api/partner/register', asyncHandler(async (req, res) => {
     partner: {
       plid: result.plid,
       pmid: result.pmid,
+      uniqueId: `CMZ-P${result.pmid}`,
       companyName,
       email,
       phone,
@@ -236,14 +253,164 @@ router.post('/api/partner/login', asyncHandler(async (req, res) => {
   });
 }));
 
-// ---- Packages & Subscription Purchase ------------------------------------------------------
-router.get('/api/partner/packages', ...guard, asyncHandler(async (_req, res) => {
+async function getWalletBalances(pmid) {
   await ensureCommerzaSchema();
-  const packages = await db.query(
-    DB,
-    'SELECT * FROM commerza_packages WHERE is_active = true ORDER BY sort_order ASC, id ASC'
-  );
-  res.json({ status: 'true', packages });
+  const [topupIn, topupOut, incIn, incOut, pendingW] = await Promise.all([
+    db.scalar(DB, "SELECT COALESCE(SUM(amount), 0)::numeric(12,2) FROM commerza_partner_wallet_tx WHERE pmid = @pmid AND wallet_type = 'topup' AND tx_type = 'credit'", { pmid }),
+    db.scalar(DB, "SELECT COALESCE(SUM(amount), 0)::numeric(12,2) FROM commerza_partner_wallet_tx WHERE pmid = @pmid AND wallet_type = 'topup' AND tx_type = 'debit'", { pmid }),
+    db.scalar(DB, "SELECT COALESCE(SUM(amount), 0)::numeric(12,2) FROM commerza_partner_wallet_tx WHERE pmid = @pmid AND COALESCE(wallet_type, 'income') = 'income' AND tx_type = 'credit'", { pmid }),
+    db.scalar(DB, "SELECT COALESCE(SUM(amount), 0)::numeric(12,2) FROM commerza_partner_wallet_tx WHERE pmid = @pmid AND COALESCE(wallet_type, 'income') = 'income' AND tx_type = 'debit'", { pmid }),
+    db.scalar(DB, "SELECT COALESCE(SUM(amount), 0)::numeric(12,2) FROM commerza_partner_withdrawals WHERE pmid = @pmid AND status = 'pending'", { pmid }),
+  ]);
+  const topupBalance = Math.max(0, Number((Number(topupIn || 0) - Number(topupOut || 0)).toFixed(2)));
+  const totalEarned = Number(incIn || 0);
+  const totalWithdrawn = Number(incOut || 0);
+  const pendingWithdrawal = Number(pendingW || 0);
+  const walletBalance = Math.max(0, Number((totalEarned - totalWithdrawn - pendingWithdrawal).toFixed(2)));
+  return { topupBalance, walletBalance, totalEarned, totalWithdrawn, pendingWithdrawal };
+}
+
+// ---- Packages & Subscription Purchase ------------------------------------------------------
+router.get('/api/partner/packages', ...guard, asyncHandler(async (req, res) => {
+  await ensureCommerzaSchema();
+  const pmid = Number(req.user.pmid);
+  const [packages, subState, balances] = await Promise.all([
+    db.query(DB, 'SELECT * FROM commerza_packages WHERE is_active = true ORDER BY sort_order ASC, id ASC'),
+    getPartnerSubscriptionState(pmid),
+    getWalletBalances(pmid),
+  ]);
+  const currentPlanPrice = subState.activeSubscription
+    ? Number(subState.activeSubscription.amount_expected || subState.activeSubscription.amount_paid || 0)
+    : 0;
+
+  const enriched = packages.map((pkg) => {
+    const price = Number(pkg.price || 0);
+    const isCurrent = subState.activeSubscription?.package_id === pkg.id;
+    const isUpgrade = Boolean(subState.activeSubscription) && !isCurrent && price > currentPlanPrice;
+    const payableAmount = subState.activeSubscription
+      ? Math.max(0, Number((price - currentPlanPrice).toFixed(2)))
+      : price;
+    return { ...pkg, isCurrent, isUpgrade, currentPlanPrice, payableAmount };
+  });
+
+  res.json({ status: 'true', packages: enriched, topupBalance: balances.topupBalance, currentPlanPrice });
+}));
+
+router.post('/api/partner/packages/purchase-from-wallet', ...guard, asyncHandler(async (req, res) => {
+  await ensureCommerzaSchema();
+  const pmid = Number(req.user.pmid);
+  const { packageId } = req.body || {};
+  if (!packageId) {
+    return res.status(400).json({ status: 'false', message: 'packageId is required' });
+  }
+
+  const pkg = await db.queryOne(DB, 'SELECT * FROM commerza_packages WHERE id = @id AND is_active = true', { id: parseInt(packageId, 10) });
+  if (!pkg) return res.status(404).json({ status: 'false', message: 'Package not found' });
+
+  const [subState, balances] = await Promise.all([
+    getPartnerSubscriptionState(pmid),
+    getWalletBalances(pmid),
+  ]);
+
+  if (subState.activeSubscription?.package_id === pkg.id) {
+    return res.status(400).json({ status: 'false', message: 'You are already on this plan.' });
+  }
+
+  const currentPlanPrice = subState.activeSubscription
+    ? Number(subState.activeSubscription.amount_expected || subState.activeSubscription.amount_paid || 0)
+    : 0;
+  const isUpgrade = Boolean(subState.activeSubscription) && Number(pkg.price) > currentPlanPrice;
+  const payable = subState.activeSubscription
+    ? Math.max(0, Number((Number(pkg.price) - currentPlanPrice).toFixed(2)))
+    : Number(pkg.price);
+
+  if (balances.topupBalance < payable) {
+    const shortfall = Number((payable - balances.topupBalance).toFixed(2));
+    return res.status(400).json({
+      status: 'false',
+      code: 'INSUFFICIENT_WALLET',
+      message: `Insufficient Top-Up Wallet balance. Need ₹${shortfall} more (Payable: ₹${payable}, Balance: ₹${balances.topupBalance}).`,
+    });
+  }
+
+  const sub = await db.tx(DB, async (t) => {
+    if (payable > 0) {
+      await t.query(
+        `INSERT INTO commerza_partner_wallet_tx (pmid, wallet_type, tx_type, category, amount, description, status)
+         VALUES (@pmid, 'topup', 'debit', 'package_purchase', @amt, @desc, 'completed')`,
+        {
+          pmid,
+          amt: payable,
+          desc: isUpgrade
+            ? `Upgraded to ${pkg.name} (Plan ₹${pkg.price} - Previous ₹${currentPlanPrice})`
+            : `Purchased ${pkg.name}`,
+        }
+      );
+    }
+
+    const row = await t.queryOne(
+      `INSERT INTO commerza_partner_subscriptions (
+         pmid, package_id, package_name, amount_expected, amount_paid,
+         payment_method, transaction_ref, notes, status, verified_by, starts_at, expires_at
+       ) VALUES (
+         @pmid, @pkgId, @pkgName, @expected, @paid,
+         'topup_wallet', @ref, @notes, 'approved', 'wallet_auto', NOW(), NOW() + (@days || ' days')::interval
+       ) RETURNING *`,
+      {
+        pmid,
+        pkgId: pkg.id,
+        pkgName: pkg.name,
+        expected: Number(pkg.price),
+        paid: payable,
+        ref: `WALLET-${Date.now()}`,
+        notes: isUpgrade ? `Upgraded from ₹${currentPlanPrice} plan` : 'Purchased via Top-Up Wallet',
+        days: Number(pkg.duration_days || 365),
+      }
+    );
+
+    await t.query('UPDATE portal_master SET isverified = 1, active = true WHERE pmid = @pmid', { pmid });
+    await t.query(
+      `INSERT INTO commerza_shop_delivery_settings (pmid, delivery_verified)
+       VALUES (@pmid, true)
+       ON CONFLICT (pmid) DO UPDATE SET delivery_verified = true, updated_at = NOW()`,
+      { pmid }
+    );
+
+    // Credit 10% referral bonus on actual payable amount if referred
+    if (payable > 0) {
+      const loginRow = await t.queryOne('SELECT intro_plid FROM portal_login WHERE pmid = @pmid LIMIT 1', { pmid });
+      if (loginRow?.intro_plid) {
+        const referrer = await t.queryOne('SELECT pmid FROM portal_login WHERE plid = @plid LIMIT 1', { plid: loginRow.intro_plid });
+        if (referrer?.pmid && Number(referrer.pmid) !== pmid) {
+          const bonus = Number((payable * 0.10).toFixed(2));
+          if (bonus > 0) {
+            await t.query(
+              `INSERT INTO commerza_partner_wallet_tx (pmid, wallet_type, tx_type, category, amount, source_pmid, description, status)
+               VALUES (@refPmid, 'income', 'credit', 'referral_bonus', @bonus, @srcPmid, @desc, 'completed')`,
+              {
+                refPmid: referrer.pmid,
+                bonus,
+                srcPmid: pmid,
+                desc: `10% referral bonus for ${pkg.name} (Shop #${pmid})`,
+              }
+            );
+          }
+        }
+      }
+    }
+
+    return row;
+  });
+
+  const nextBalances = await getWalletBalances(pmid);
+  res.status(201).json({
+    status: 'true',
+    message: isUpgrade
+      ? `Upgraded to ${pkg.name} for ₹${payable}! Remaining wallet balance: ₹${nextBalances.topupBalance}`
+      : `${pkg.name} activated! Remaining wallet balance: ₹${nextBalances.topupBalance}`,
+    subscription: sub,
+    topupBalance: nextBalances.topupBalance,
+  });
 }));
 
 router.get('/api/partner/subscription', ...guard, asyncHandler(async (req, res) => {
@@ -1313,6 +1480,251 @@ router.delete('/api/partner/users/:id', ...guard, asyncHandler(async (req, res) 
   const id = parseInt(req.params.id, 10);
   await db.exec(DB, 'DELETE FROM commerza_portal_users WHERE id = @id AND pmid = @pmid', { id, pmid });
   res.json({ status: 'true', message: 'User removed' });
+}));
+
+// ---- Partner-to-Partner Referrals & Wallet -------------------------------------------------
+router.get('/api/partner/referrals', ...guard, asyncHandler(async (req, res) => {
+  await ensureCommerzaSchema();
+  const pmid = Number(req.user.pmid);
+  const plid = Number(req.user.plid);
+
+  let me = await db.queryOne(DB, 'SELECT plid, referalcode FROM portal_login WHERE pmid = @pmid LIMIT 1', { pmid });
+  let referralCode = me?.referalcode || '';
+  if (!referralCode) {
+    referralCode = `CMZ-P${pmid}`;
+    await db.exec(DB, 'UPDATE portal_login SET referalcode = @rc WHERE pmid = @pmid', { rc: referralCode, pmid });
+  }
+
+  const referrals = await db.query(
+    DB,
+    `SELECT pm.pmid, pm.companyname, pm.comemailid, pm.mobileno, pm.isverified, pm.doc AS joined_at,
+            sub.package_name, sub.amount_paid, sub.status AS subscription_status
+     FROM portal_login pl
+     JOIN portal_master pm ON pm.pmid = pl.pmid
+     LEFT JOIN LATERAL (
+       SELECT package_name, amount_paid, status
+       FROM commerza_partner_subscriptions s
+       WHERE s.pmid = pm.pmid
+       ORDER BY s.id DESC LIMIT 1
+     ) sub ON TRUE
+     WHERE pl.intro_plid = @plid OR (pl.refral_id IS NOT NULL AND upper(pl.refral_id) = upper(@rc))
+     ORDER BY pm.pmid DESC`,
+    { plid: me?.plid || plid, rc: referralCode }
+  );
+
+  const totalReferralEarnings = await db.scalar(
+    DB,
+    "SELECT COALESCE(SUM(amount), 0)::numeric(12,2) FROM commerza_partner_wallet_tx WHERE pmid = @pmid AND tx_type = 'credit' AND category = 'referral_bonus'",
+    { pmid }
+  );
+
+  const verifiedReferred = referrals.filter((r) => r.isverified === 1).length;
+  const totalReferralBusiness = referrals
+    .filter((r) => r.subscription_status === 'approved')
+    .reduce((sum, r) => sum + Number(r.amount_paid || 0), 0);
+
+  res.json({
+    status: 'true',
+    referralCode,
+    stats: {
+      totalReferred: referrals.length,
+      verifiedReferred,
+      totalReferralBusiness,
+      totalReferralEarnings: Number(totalReferralEarnings || 0),
+    },
+    referrals,
+  });
+}));
+
+router.get('/api/partner/wallet', ...guard, asyncHandler(async (req, res) => {
+  await ensureCommerzaSchema();
+  const pmid = Number(req.user.pmid);
+
+  const [balances, transactions, withdrawals, topupRequests, loginRow] = await Promise.all([
+    getWalletBalances(pmid),
+    db.query(DB, 'SELECT * FROM commerza_partner_wallet_tx WHERE pmid = @pmid ORDER BY id DESC LIMIT 50', { pmid }),
+    db.query(DB, 'SELECT * FROM commerza_partner_withdrawals WHERE pmid = @pmid ORDER BY id DESC LIMIT 50', { pmid }),
+    db.query(DB, 'SELECT * FROM commerza_partner_topup_requests WHERE pmid = @pmid ORDER BY id DESC LIMIT 50', { pmid }),
+    db.queryOne(DB, 'SELECT referalcode FROM portal_login WHERE pmid = @pmid ORDER BY plid ASC LIMIT 1', { pmid }),
+  ]);
+
+  res.json({
+    status: 'true',
+    uniqueId: loginRow?.referalcode || `CMZ-P${pmid}`,
+    wallet: balances,
+    transactions,
+    withdrawals,
+    topupRequests,
+  });
+}));
+
+router.get('/api/partner/wallet/lookup', ...guard, asyncHandler(async (req, res) => {
+  await ensureCommerzaSchema();
+  const q = String(req.query.uniqueId || '').trim();
+  if (!q) return res.status(400).json({ status: 'false', message: 'uniqueId is required' });
+
+  const row = await db.queryOne(
+    DB,
+    `SELECT pm.pmid, pm.companyname, COALESCE(NULLIF(pl.referalcode, ''), 'CMZ-P' || pm.pmid::text) AS unique_id,
+            COALESCE(pm.active, true) AS active
+     FROM portal_master pm
+     LEFT JOIN portal_login pl ON pl.pmid = pm.pmid
+     WHERE upper(COALESCE(pl.referalcode, '')) = upper(@q)
+        OR ('CMZ-P' || pm.pmid::text) = upper(@q)
+        OR pm.pmid::text = @q
+     ORDER BY pl.plid ASC LIMIT 1`,
+    { q }
+  );
+  if (!row) return res.status(404).json({ status: 'false', message: `No partner/shop found with Unique ID '${q}'` });
+  res.json({
+    status: 'true',
+    recipient: {
+      pmid: Number(row.pmid),
+      uniqueId: row.unique_id,
+      shopName: row.companyname,
+      active: Boolean(row.active),
+    },
+  });
+}));
+
+router.post('/api/partner/wallet/transfer', ...guard, asyncHandler(async (req, res) => {
+  await ensureCommerzaSchema();
+  const senderPmid = Number(req.user.pmid);
+  const { recipientUniqueId, amount, note = '' } = req.body || {};
+  const uid = String(recipientUniqueId || '').trim();
+  const amt = Number(amount);
+
+  if (!uid || !amt || amt <= 0) {
+    return res.status(400).json({ status: 'false', message: 'Valid recipientUniqueId and positive amount are required' });
+  }
+
+  const recipient = await db.queryOne(
+    DB,
+    `SELECT pm.pmid, pm.companyname, COALESCE(NULLIF(pl.referalcode, ''), 'CMZ-P' || pm.pmid::text) AS unique_id,
+            COALESCE(pm.active, true) AS active
+     FROM portal_master pm
+     LEFT JOIN portal_login pl ON pl.pmid = pm.pmid
+     WHERE upper(COALESCE(pl.referalcode, '')) = upper(@uid)
+        OR ('CMZ-P' || pm.pmid::text) = upper(@uid)
+        OR pm.pmid::text = @uid
+     ORDER BY pl.plid ASC LIMIT 1`,
+    { uid }
+  );
+
+  if (!recipient) {
+    return res.status(404).json({ status: 'false', message: `Recipient partner '${uid}' not found` });
+  }
+  if (Number(recipient.pmid) === senderPmid) {
+    return res.status(400).json({ status: 'false', message: 'Cannot transfer wallet balance to your own account' });
+  }
+  if (!recipient.active) {
+    return res.status(400).json({ status: 'false', message: 'Recipient partner account is suspended' });
+  }
+
+  const sender = await db.queryOne(
+    DB,
+    `SELECT pm.companyname, COALESCE(NULLIF(pl.referalcode, ''), 'CMZ-P' || pm.pmid::text) AS unique_id
+     FROM portal_master pm
+     LEFT JOIN portal_login pl ON pl.pmid = pm.pmid
+     WHERE pm.pmid = @pmid ORDER BY pl.plid ASC LIMIT 1`,
+    { pmid: senderPmid }
+  );
+
+  const balances = await getWalletBalances(senderPmid);
+  if (amt > balances.topupBalance) {
+    return res.status(400).json({
+      status: 'false',
+      message: `Insufficient Top-Up Wallet balance (available ₹${balances.topupBalance.toFixed(2)})`,
+    });
+  }
+
+  const noteText = String(note || '').trim();
+  const senderUid = sender?.unique_id || `CMZ-P${senderPmid}`;
+  const recipientUid = recipient.unique_id;
+
+  await db.tx(DB, async (t) => {
+    await t.query(
+      `INSERT INTO commerza_partner_wallet_tx (pmid, wallet_type, tx_type, category, amount, description, status)
+       VALUES (@pmid, 'topup', 'debit', 'transfer_out', @amt, @desc, 'completed')`,
+      {
+        pmid: senderPmid,
+        amt,
+        desc: `Transferred to ${recipientUid} (${recipient.companyname})${noteText ? ` — ${noteText}` : ''}`,
+      }
+    );
+    await t.query(
+      `INSERT INTO commerza_partner_wallet_tx (pmid, wallet_type, tx_type, category, amount, description, status)
+       VALUES (@pmid, 'topup', 'credit', 'transfer_in', @amt, @desc, 'completed')`,
+      {
+        pmid: Number(recipient.pmid),
+        amt,
+        desc: `Received from ${senderUid} (${sender?.companyname || 'Partner'})${noteText ? ` — ${noteText}` : ''}`,
+      }
+    );
+  });
+
+  const updated = await getWalletBalances(senderPmid);
+  res.status(201).json({
+    status: 'true',
+    message: `Transferred ₹${amt.toFixed(2)} to ${recipientUid} (${recipient.companyname})`,
+    topupBalance: updated.topupBalance,
+  });
+}));
+
+router.post('/api/partner/wallet/topup', ...guard, asyncHandler(async (req, res) => {
+  await ensureCommerzaSchema();
+  const pmid = Number(req.user.pmid);
+  const { amount, paymentMethod = 'upi', transactionRef = '', paymentProofUrl = '', notes = '' } = req.body || {};
+  const amt = Number(amount);
+
+  if (!amt || amt <= 0 || !String(transactionRef).trim()) {
+    return res.status(400).json({ status: 'false', message: 'Valid amount and transactionRef (UTR) are required' });
+  }
+
+  const row = await db.queryOne(
+    DB,
+    `INSERT INTO commerza_partner_topup_requests (pmid, amount, payment_method, transaction_ref, payment_proof_url, notes, status)
+     VALUES (@pmid, @amt, @method, @ref, @proof, @notes, 'pending') RETURNING *`,
+    {
+      pmid,
+      amt,
+      method: String(paymentMethod),
+      ref: String(transactionRef).trim(),
+      proof: String(paymentProofUrl || ''),
+      notes: String(notes || ''),
+    }
+  );
+
+  res.status(201).json({
+    status: 'true',
+    message: 'Wallet top-up submitted. Admin will verify the amount and credit your Top-Up Wallet.',
+    topup: row,
+  });
+}));
+
+router.post('/api/partner/withdrawals', ...guard, asyncHandler(async (req, res) => {
+  await ensureCommerzaSchema();
+  const pmid = Number(req.user.pmid);
+  const { amount, payoutMethod = 'upi', accountDetails = '' } = req.body || {};
+  const amt = Number(amount);
+
+  if (!amt || amt <= 0 || !String(accountDetails).trim()) {
+    return res.status(400).json({ status: 'false', message: 'Valid amount and account/UPI details are required' });
+  }
+
+  const balances = await getWalletBalances(pmid);
+  if (amt > balances.walletBalance) {
+    return res.status(400).json({ status: 'false', message: `Insufficient Income Wallet balance (available ₹${balances.walletBalance.toFixed(2)})` });
+  }
+
+  const row = await db.queryOne(
+    DB,
+    `INSERT INTO commerza_partner_withdrawals (pmid, amount, payout_method, account_details, status)
+     VALUES (@pmid, @amt, @method, @details, 'pending') RETURNING *`,
+    { pmid, amt, method: String(payoutMethod), details: String(accountDetails).trim() }
+  );
+
+  res.status(201).json({ status: 'true', message: 'Withdrawal request submitted', withdrawal: row });
 }));
 
 module.exports = router;
