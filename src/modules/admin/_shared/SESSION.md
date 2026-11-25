@@ -7,7 +7,7 @@ Every admin controller port MUST follow this file.
 ## 1. How to protect an admin route
 
 ```js
-const { adminAuth, getAdminUser, legacyUrl } = require('./_shared/adminSession');
+const { adminAuth, getAdminUser, legacyUrl } = require('./_shared/admin-session');
 // auth
 router.all('/admin/Foo/Index{/:id}', adminAuth, asyncHandler(async (req, res) => { ... }));
 ```
@@ -119,7 +119,7 @@ ViewBag.excelactive = await CheckPermissions.GetExcelPermission(url);
 ```
 (`out` parameters are returned as an object with the C# parameter names; lib contract.)
 
-## 7. Shared helpers available to every admin controller (`require('./_shared/adminSession')`)
+## 7. Shared helpers available to every admin controller (`require('./_shared/admin-session')`)
 `adminAuth`, `AdminSessionExpire`, `isAdmin(req)`, `getAdminUser(req)`, `legacyUrl(req)`, `getAdminMenu(req)`, `loadAdminMenu(empId)`,
 `issueAdminToken(emp)` / `adminTokenPayload(emp)` (emp = PascalCase Employee_Master object), `publicAdminUser(emp)`,
 `abandonSession(req)`, `errorInsert(req, err, 'PROCEDURENAME')` (the legacy `#region For ErrorInsert` block -> `DataUtility.ErrorInsert`),

@@ -3,6 +3,7 @@
 // For every controller .cs: lists public action methods, and checks each action name appears as a route path
 // segment (/<prefix>/<Controller>/<Action>) in src/modules/<prefix>/<File>.js. Also node --check + require of each module.
 const fs = require('fs'), path = require('path'), cp = require('child_process');
+const MAP = require('./module-name-map.json'); // legacy file name -> kebab-case module file (see PORTING_GUIDE_MVC.md)
 const [app, prefix] = process.argv.slice(2);
 const root = path.join('C:/Users/MY ASUS/cluster', app, process.argv[4] || '');
 const walk = (d, o = []) => { for (const e of fs.readdirSync(d, { withFileTypes: true })) { const p = path.join(d, e.name); e.isDirectory() ? walk(p, o) : e.name.endsWith('.cs') && o.push(p); } return o; };
@@ -14,7 +15,7 @@ for (const f of files) {
   const base = path.basename(f, '.cs').trim();
   const src = fs.readFileSync(f, 'utf8').replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
   const names = [...new Set([...src.matchAll(act)].map(m => m[1]))];
-  const mod = path.join('src/modules', prefix, base + '.js');
+  const mod = path.join('src/modules', MAP[prefix + '/' + base + '.js'] || (prefix + '/' + base + '.js'));
   if (!fs.existsSync(mod)) { missingFiles.push(base); totalA += names.length; continue; }
   const js = fs.readFileSync(mod, 'utf8').toLowerCase();
   try { cp.execFileSync('node', ['--check', mod], { stdio: 'pipe' }); } catch (e) { bad.push(base + ' (syntax)'); }
