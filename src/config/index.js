@@ -139,6 +139,12 @@ module.exports = {
     MERCHANT_KEY: env.PAYU_MERCHANT_KEY || '',
     SALT: env.PAYU_SALT || '',
     PAYU_URL: env.PAYU_URL || '',
+    // Payment Gateway app (src/modules/gateway, src/lib/gateway): values were hard-coded in the legacy C#; supply them via env
+    PayUGatewayTestKey: env.GATEWAY_PAYU_KEY || '',
+    PayUGatewayTestSalt: env.GATEWAY_PAYU_SALT || '',
+    GatewayRazorpayKeyId: env.GATEWAY_RAZORPAY_KEY_ID || '',
+    GatewayRazorpayKeySecret: env.GATEWAY_RAZORPAY_KEY_SECRET || '',
+    SmsJustPassword: env.SMSJUST_PASSWORD || '',
     WalletAPIURL: env.WALLET_API_URL || '',
     EsPayAESKey: env.ESPAY_AES_KEY || '',
     SMPT_HOST: env.SMTP_HOST || '',
