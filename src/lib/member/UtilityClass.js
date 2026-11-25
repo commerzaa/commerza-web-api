@@ -16,7 +16,7 @@
  *   FindingEmailContentWithUserIdPassword(UserName, Msg, Email, Password, Mode, TransactionPass="", SponsorUserName="", plid=0, Amount=0, IFSC="", MemberName="", Toplid=0, DebitAmt=0, CreditAmt=0, passwordType="") : string
  *   SendMsgToMobileWithSelfAccount(Api) : int (0) ; CheckAndSendMsgOnEmail(...) : string [invalid-function message] ; CheckAndSendMsgOnMobile(UserId, MobileNo, Message) : "0" ; ToOrdinal(value) [sync] ; BlastCampaign() ; SizeSuffix(value) [sync]
  *   sessioncheck(Session_id, Plid) : int ; GetTimestamp(value) [sync] ; WithdrawalByPayunie(plid) : object ; GenerateOrderId() [sync]
- *  Reused from existing ports (same C# logic, same database 'affiliate'): ../UtilityClass.js (ClusterOfferAPI) for GetDatabaseDate, SendEmailByApiSetting, SaveEMAILHistory, SaveSMSHistory, CallBackAddress, FindingSms/EmailContent..., ResizeImage,
+ *  Reused from existing ports (same C# logic, same database 'affiliate'): ../UtilityClass.js (ClusterOfferAPI) for GetDatabaseDate, SendEmailByApiSetting, SaveEMAILHistory, SaveSMSHistory, CallBackAddress, FindingEmailContent..., ResizeImage,
  *   ImageUploadMasterMethodECommNew, WithdrawalByPayunie, GetTimestamp, GenerateOrderId ; ../franchise/UtilityClass.js for the pure helpers (number/word/random/validation/image-format helpers, CreateImage).
  * PORT-NOTE: Server.MapPath(x) => config.uploadDir/<x without ~ and leading slashes>. sharp (optional npm package, required lazily) is used for System.Drawing resizing; without it the original image bytes are written unchanged.
  * PORT-NOTE: Send() hard-coded SMTP credentials/host/from-address (testmail@..., webmail....); now config.app.UtilityMailUser / UtilityMailPassword / UtilityMailHost / UtilityMailFrom (empty by default).
@@ -563,6 +563,21 @@ const SendSMSWithAPI = (mobileNo, message, ApiType = '0') => sendSmsVia('SELECT 
 const SendSMSWithAPIz = (mobileNo, message, ApiType = '0') => sendSmsVia('SELECT SAID,Prom_API,Tran_APIV from TBL_SMSAPI', 'tran_apiv', 'prom_api', mobileNo, message, ApiType);
 const SendSMSWithAPINew = (mobileNo, message, ApiType = '0') => sendSmsVia('SELECT SAID,Prom_API,Tran_API from TBL_SMSAPI where SAID=2', 'tran_api', 'prom_api', mobileNo, message, ApiType);
 
+// Member C# differs from ClusterOfferAPI here: it passes empname / userid unchanged (API: IsNullOrEmpty(x) ? "" : x).
+// A SqlParameter whose Value is C# null is "not supplied" to SQL Server, so the procedure default is used
+// (@EmpName = 'ROOT', @UserId = ''); reproduced by omitting the argument (named notation => PostgreSQL default).
+async function FindingSmsContentWithUserIdPassword(empname, msg, userid, password, mode, SponsorUserName = '', MemberName = '', CreditAmt = 0, DebitAmt = 0, Plid = 0, Toplid = 0, TransactionPass = '', PasswordType = '') {
+  // PORT-NOTE: legacy SQL text ended with ",PasswordType" (missing "@"), so SQL Server received the literal string 'PasswordType'.
+  const params = { plid: Plid, Toplid, Mode: mode };
+  if (empname !== null && empname !== undefined) params.EmpName = empname;
+  params.Message = msg;
+  if (userid !== null && userid !== undefined) params.UserId = userid;
+  Object.assign(params, { Password: password, SponsorUserName, MemberName, DebitAmount: DebitAmt, CreditAmount: CreditAmt, PasswordType: 'PasswordType' });
+  const row = await procOne(DB, 'Usp_SendDynamicSmsAction', params);
+  const v = outCol(row, 'Result');
+  return v === null || v === undefined ? '' : String(v); // spOutput.Value.ToString() (DBNull => "")
+}
+
 // ---------------------------------------------------------------- the function table
 const fns = {
   ExchangeRateFromAPI, dollarToBitcoinConvertor,
@@ -598,7 +613,7 @@ const fns = {
   SendSMSWithAPI, SendSMSWithAPIz, SendSMSWithAPINew,
   SaveSMSHistory: (...a) => API.SaveSMSHistory(...a),
   SendMsgOnMobile: async () => 0,
-  FindingSmsContentWithUserIdPassword: (...a) => API.FindingSmsContentWithUserIdPassword(...a),
+  FindingSmsContentWithUserIdPassword,
   FindingEmailContentWithUserIdPassword: (...a) => API.FindingEmailContentWithUserIdPassword(...a),
   SendMsgToMobileWithSelfAccount: async () => 0,
   CheckAndSendMsgOnEmail: async () => 'You Called Invalid Function Please Call SendEmailByApiSetting',
