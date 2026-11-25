@@ -51,6 +51,8 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(params);
 app.use(require('./lib/GetIP').requestContext); // replaces HttpContext.Current for GetIP.GetLocalIP()
+// franchise/GetIP (also used by merchant and admin libs) has its own AsyncLocalStorage; without this, GetLocalIP() with no req returns "No Ip Fetched."
+app.use(require('./lib/franchise/GetIP').requestContext);
 
 // Static uploads (legacy folders: Member_Image, KYC_Images, TicketCenterImage, UploadedBills, ...)
 fs.mkdirSync(config.uploadDir, { recursive: true });

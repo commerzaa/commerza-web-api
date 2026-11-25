@@ -28,7 +28,9 @@ const Excel_Product_Detail = ['Id', 'MCID', 'CID', 'SCID', 'VCID', 'Code', 'Prod
 const ProductFullDetail = ['ActiveFrom', 'ActiveTo', 'ActualPrice', 'BranchId', 'Breadth_cms', 'CashOnDelivery', 'catid', 'Color', 'CompanyId', 'DAP', 'DiscountPercentage',
   'FullDescription', 'Height_cms', 'IsActive', 'IsAllowCoupon', 'IsLevel', 'IsOutOfStock', 'IsVerified', 'KeyFeatures', 'Length_cms', 'MainCategoryId', 'MainCategoryName',
   'MaxOrderQty', 'MinOrderQty', 'MPRID', 'Paymode', 'ProcurementSLA', 'WarrentyInfoCare', 'ProductCode', 'SubPrCode', 'ProductImages', 'ProductTitle', 'Qty', 'ReplacementDay',
-  'SellMRP', 'ShippingCharges', 'ShotDescription', 'Size', 'SPRID', 'StockIn', 'StockOut', 'SubCategoryId', 'Unit', 'VatCategoryId', 'VatPercentage', 'Weight_kg', 'YWillRece'];
+  'SellMRP', 'ShippingCharges', 'ShotDescription', 'Size', 'SPRID', 'StockIn', 'StockOut', 'SubCategoryId', 'Unit', 'VatCategoryId', 'VatPercentage', 'Weight_kg', 'YWillRece',
+  // Merchant-only properties (Merchant Models/Product_Master_Sub.cs ProductFullDetail)
+  'HSN', 'ManufacturerDetails', 'PackerDetails', 'ImporterDetails', 'LuxuryCess', 'Fullfilmentby', 'Procurementtype'];
 const Product_Master_Main = ['BranchId', 'catid', 'BrandId', 'CompanyId', 'CreatedDate', 'FullDescription', 'KeyFeatures', 'MainCategoryId', 'MaxOrderQty', 'MinOrderQty',
   'ModifyDate', 'MPRID', 'MVat', 'Paymode', 'ProductCode', 'ProductTitle', 'ShotDescription', 'SubCategoryId', 'VatCategoryId'];
 const ddl_Master = ['CategoryId', 'Create_Date', 'ddl_ID', 'ddl_Name', 'ddl_Name_ID', 'ddl_Text', 'ddl_Value', 'isActive', 'MainCategoryId', 'parent_ddl_ID', 'SubCategoryId'];
