@@ -7,7 +7,7 @@
  *          splitCsv(v), nullRef(), cvtInt(v), cvtDec(v), at(arr, i), reqDec(v, name), mapPath(x), decodeBase64Image(s),
  *          saveScaledImage(buf, fullPath), cleanName(v), decOutToInt(row, name)
  *          [batch06 additions] inlinePerms(empId, url), dynPaging(), toInt16(v), trimNull(v), qs(req, name), jsonDenyGet(req, res, data),
- *          listToString(typeName)
+ *          listToString(typeName), intParse(v)
  */
 const fs = require('fs');
 const path = require('path');
@@ -125,6 +125,7 @@ async function excelHistory(userid, url, Filename) {
  * The legacy tab-separated ".xls" export (StreamWriter to ~/AllExcelSheets/<sheet>, Response.Redirect to it).
  * opts: { req, res, sheet ('Payit_Forward_List.xls'), headers: string[] (each written as "<h> \t"), rows, cells(item, w) (async ok),
  *         innerProc (ErrorInsert name of the per-row catch), outerProc (ErrorInsert name of the outer catch), ViewBag (receives filepath),
+ *         rethrow (batch06: true when the legacy export had no outer try/catch),
  *         downloadName (default sheet), headerSuffix (default ' \t') }
  * Returns { sent: true } when the download was written to `res`.
  */
@@ -162,6 +163,7 @@ async function writeXlsExport(opts) {
     return { sent: true };
   } catch (ExpObj) {
     if (res.headersSent) return { sent: true };
+    if (opts.rethrow) throw ExpObj; // [batch06] legacy export without an outer try/catch
     if (outerProc) await errorInsert(req, ExpObj, outerProc);
     ViewBag.filepath = ExpObj.message;
     return { sent: false };
@@ -312,8 +314,15 @@ function jsonDenyGet(req, res, data) {
 /** A public controller method returning a non-ActionResult object: MVC wraps it in ContentResult(value.ToString()). */
 const listToString = (typeName) => `System.Collections.Generic.List\`1[${typeName}]`;
 
+/** int.Parse(x.ToString()) / Convert.ToInt32(x.Value.ToString()) on a DB value: DBNull/"" => FormatException */
+function intParse(v) {
+  const s = str(v);
+  if (s === '') throw new Error('Input string was not in a correct format.');
+  return cvtInt(s);
+}
+
 module.exports = {
-  jsonDenyGet, listToString,
+  intParse, jsonDenyGet, listToString,
   inlinePerms, toInt16, dynPaging, trimNull, qs,
   DB, view, nInt, nDec, nStr, reqInt, col, str, cellStr, tab, nowStamp, netFormat, netDateString, dec2, outInt, outStr, perms,
   excelHistory, writeXlsExport, errorView, splitCsv, nullRef, cvtInt, cvtDec, at, reqDec, mapPath,
