@@ -7,6 +7,34 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const compression = require('compression');
 const config = require('./config');
+
+// MVC route namespaces reference shared libraries that do not all have
+// namespace-local copies. Resolve missing namespace imports against src/lib.
+const Module = require('module');
+const originalResolveFilename = Module._resolveFilename;
+Module._resolveFilename = function resolveFilename(request, parent, isMain, options) {
+  try {
+    return originalResolveFilename.call(this, request, parent, isMain, options);
+  } catch (error) {
+    if (!/[/\\]lib[/\\](merchant|member|franchise)[/\\][^/\\]+$/.test(request)) throw error;
+    const match = request.match(/[/\\]lib[/\\](merchant|member|franchise)[/\\]([^/\\]+)$/);
+    if (!match) throw error;
+    const namespace = match[1];
+    const name = match[2].replace(/\.js$/, '');
+    const base = path.join(__dirname, 'lib');
+    const candidates = [
+      path.join(base, namespace, name + '.js'),
+      path.join(base, name + '.js'),
+      path.join(base, 'member', name + '.js'),
+      path.join(base, 'franchise', name + '.js'),
+      path.join(base, 'merchant', name + '.js'),
+    ];
+    const candidate = candidates.find((file) => fs.existsSync(file));
+    if (!candidate) throw error;
+    return originalResolveFilename.call(this, candidate, parent, isMain, options);
+  }
+};
+
 const params = require('./middleware/params');
 const { notFound, errorHandler } = require('./middleware/error');
 const db = require('./db');

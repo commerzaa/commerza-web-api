@@ -11,7 +11,7 @@ const bool = (v, d = false) => (v === undefined ? d : String(v).toLowerCase() ==
  */
 module.exports = {
   env: env.NODE_ENV || 'development',
-  port: parseInt(env.PORT, 10) || 3000,
+  port: parseInt(env.PORT, 10) || 3001,
   jwt: {
     secret: env.JWT_SECRET || 'dev-only-secret-change-me',
     expiresIn: env.JWT_EXPIRES_IN || '7d',
