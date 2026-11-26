@@ -11,6 +11,18 @@
  *   POST /api/CustomerSignUp   { FullName, MobileNo, EmailId?, Otp }
  *   POST /api/CustomerSignIn   { MobileNo, Otp }
  *
+ * Each sign-in / sign-up adds a row to dbo.tbl_customerloginhistory (status = 1) and the token carries its clhid as
+ * `lsid`. middleware/auth.js rejects the token once that row's status is 0, so logout works server-side:
+ *   POST /api/CustomerLogout     {}   ends this token's session
+ *   POST /api/CustomerLogoutAll  {}   ends every session of the customer (all devices)
+ *
+ * Tokens: sign-in / sign-up return a short-lived access `token` (JWT, config.jwt.customerExpiresIn, default 15m) and a
+ * long-lived `refreshToken` (config.jwt.refreshExpiresDays, default 30, renewed on every refresh). Only a SHA-256 hash of
+ * the refresh token is stored, in dbo.commerza_customer_refresh_tokens (one row per login session, keyed by clhid).
+ *   POST /api/CustomerRefreshToken { RefreshToken }   public; returns a new { token, refreshToken, expiresIn }.
+ *        The refresh token is rotated: the one sent is no longer valid afterwards. Fails with 401 once the session is
+ *        logged out, the refresh token expired or was already used, or the account is inactive.
+ *
  * Signed-in customer (Authorization: Bearer <token from sign-up / sign-in>). The customer is always taken
  * from the token, never from the request body. Addresses are stored in dbo.ims_customeraddress with
  * tousertype 'Customer' and touserid = clid, the same convention checkout (ChecoutController) reads.
@@ -27,6 +39,7 @@
  * response (`Otp`) so it can be shown on screen. Remove that once SMS sending is in place.
  */
 const crypto = require('crypto');
+const jwt = require('jsonwebtoken');
 const express = require('express');
 const rateLimit = require('express-rate-limit');
 const db = require('../db');
@@ -125,15 +138,67 @@ async function consumeOtp(t, mobile, mode, otp) {
   return !!row;
 }
 
-async function recordLogin(t, clid, ip) {
-  await t.exec('update dbo.tbl_customerlogin set lastlogin = current_date where clid = @clid', { clid });
-  await t.exec('update dbo.tbl_customerloginhistory set status = 0 where plid = @clid', { clid });
-  await t.exec(
-    'insert into dbo.tbl_customerloginhistory (plid, date, ipaddress, status, regno) values (@clid, localtimestamp, @ip, 1, @regno)',
-    { clid, regno: clid, ip: ip.slice(0, 150) });
+/* ---------------------------------------------------------------- refresh tokens */
+
+const REFRESH_DAYS = config.jwt.refreshExpiresDays;
+let refreshTableReady = null;
+/** Extension table (the legacy tbl_customerloginhistory is not altered). Created once per process. */
+function ensureRefreshTable() {
+  if (!refreshTableReady) {
+    refreshTableReady = shop.query(`
+      create table if not exists dbo.commerza_customer_refresh_tokens (
+        clhid bigint primary key,
+        clid bigint not null,
+        token_hash char(64) not null,
+        expires_at timestamp not null,
+        created_at timestamp not null default localtimestamp,
+        rotated_at timestamp
+      );
+      create index if not exists ix_commerza_customer_refresh_tokens_clid on dbo.commerza_customer_refresh_tokens (clid);`)
+      .catch((e) => { refreshTableReady = null; throw e; });
+  }
+  return refreshTableReady;
 }
 
-function customerResponse(c) {
+const sha256 = (v) => crypto.createHash('sha256').update(v).digest('hex');
+/** Refresh token = "<lsid>.<random>": the lsid finds the session row, the random part is checked against its hash. */
+function newRefreshToken(lsid) {
+  const token = `${lsid}.${crypto.randomBytes(32).toString('base64url')}`;
+  return { token, hash: sha256(token) };
+}
+function parseRefreshToken(v) {
+  const m = /^(\d{1,18})\.[A-Za-z0-9_-]{43}$/.exec(v);
+  return m ? { lsid: Number(m[1]), hash: sha256(v) } : null;
+}
+
+/** Access token for a customer session; `expiresIn` (seconds) tells the client when it will need refreshing. */
+function issueAccessToken(c, lsid) {
+  const token = signToken({ plid: c.clid, clid: c.clid, userName: str(c.phone), userType: 'customer', lsid },
+    { expiresIn: config.jwt.customerExpiresIn });
+  const { exp, iat } = jwt.decode(token);
+  return { token, expiresIn: exp - iat };
+}
+
+/**
+ * Starts a login session: one tbl_customerloginhistory row with status = 1 plus its refresh token.
+ * Returns { lsid, refreshToken } (lsid = the clhid, carried in the access token).
+ * Other sessions are left active so the customer can stay signed in on several devices; status = 0 means logged out.
+ */
+async function recordLogin(t, clid, ip) {
+  await t.exec('update dbo.tbl_customerlogin set lastlogin = current_date where clid = @clid', { clid });
+  const lsid = await t.scalar(
+    'insert into dbo.tbl_customerloginhistory (plid, date, ipaddress, status, regno) values (@clid, localtimestamp, @ip, 1, @regno) returning clhid',
+    { clid, regno: clid, ip: ip.slice(0, 150) });
+  const refresh = newRefreshToken(lsid);
+  await t.exec(
+    `insert into dbo.commerza_customer_refresh_tokens (clhid, clid, token_hash, expires_at)
+     values (@lsid, @clid, @hash, localtimestamp + make_interval(days => @days))`,
+    { lsid, clid, hash: refresh.hash, days: REFRESH_DAYS });
+  return { lsid, refreshToken: refresh.token };
+}
+
+/** Pass the session from recordLogin() to issue tokens; profile responses only use `.user`. */
+function customerResponse(c, session) {
   const name = [str(c.fname), str(c.lname)].filter(Boolean).join(' ');
   const user = {
     id: String(c.clid),
@@ -144,8 +209,8 @@ function customerResponse(c) {
     referralCode: str(c.referalcode),
     createdAt: c.doc ? new Date(c.doc).toISOString() : undefined,
   };
-  const token = signToken({ plid: c.clid, clid: c.clid, userName: user.phone, userType: 'customer' });
-  return { user, token };
+  if (!session) return { user };
+  return { user, ...issueAccessToken(c, session.lsid), refreshToken: session.refreshToken };
 }
 
 // public
@@ -195,6 +260,7 @@ router.post('/api/CustomerSignUp', verifyLimiter, asyncHandler(async (req, res) 
   if (!/^\d{6}$/.test(otp)) return fail(res, 'Please enter the 6-digit OTP.');
 
   const ip = await GetIP.GetLocalIP(req);
+  await ensureRefreshTable();
   const [fname, ...rest] = fullName.split(' ');
   const lname = rest.join(' ');
 
@@ -220,12 +286,12 @@ router.post('/api/CustomerSignUp', verifyLimiter, asyncHandler(async (req, res) 
       { loginid, userid: loginid, username: mobile, mobile, fname: fname.slice(0, 100), lname: lname.slice(0, 100), email: email || null, cid: DEFAULT_CID,
         ip: ip.slice(0, 100), did: DID, referalcode });
     await t.exec('update dbo.tbl_customerlogin set regno = clid where clid = @clid', { clid: customer.clid });
-    await recordLogin(t, customer.clid, ip);
-    return { customer };
+    const session = await recordLogin(t, customer.clid, ip);
+    return { customer, session };
   });
 
   if (result.error) return fail(res, result.error);
-  return res.json({ status: 'true', message: 'Account created successfully.', ...customerResponse(result.customer) });
+  return res.json({ status: 'true', message: 'Account created successfully.', ...customerResponse(result.customer, result.session) });
 }));
 
 // public
@@ -236,17 +302,58 @@ router.post('/api/CustomerSignIn', verifyLimiter, asyncHandler(async (req, res) 
   if (!/^\d{6}$/.test(otp)) return fail(res, 'Please enter the 6-digit OTP.');
 
   const ip = await GetIP.GetLocalIP(req);
+  await ensureRefreshTable();
   const result = await db.tx('shopping', async (t) => {
     const customer = await findCustomerByMobile(t, mobile);
     if (!customer) return { error: 'No account found for this mobile number. Please sign up first.' };
     if (customer.active !== 1) return { error: 'This account is inactive. Please contact support.' };
     if (!(await consumeOtp(t, mobile, 'login', otp))) return { error: 'Invalid or expired OTP. Please request a new one.' };
-    await recordLogin(t, customer.clid, ip);
-    return { customer };
+    const session = await recordLogin(t, customer.clid, ip);
+    return { customer, session };
   });
 
   if (result.error) return fail(res, result.error);
-  return res.json({ status: 'true', message: 'Signed in successfully.', ...customerResponse(result.customer) });
+  return res.json({ status: 'true', message: 'Signed in successfully.', ...customerResponse(result.customer, result.session) });
+}));
+
+const refreshLimiter = limiter(60);
+
+// public: trades a refresh token for a new access token + refresh token (rotation)
+router.post('/api/CustomerRefreshToken', refreshLimiter, asyncHandler(async (req, res) => {
+  const parsed = parseRefreshToken(str(req.p.RefreshToken));
+  const reject = (message) => res.status(401).json({ status: 'false', message, code: 'REFRESH_INVALID' });
+  if (!parsed) return reject('Invalid refresh token. Please sign in again.');
+  await ensureRefreshTable();
+
+  const result = await db.tx('shopping', async (t) => {
+    const session = await t.queryOne(
+      `select r.clid, h.status, (r.expires_at > localtimestamp) as live, c.active, c.clid as cid, c.phone
+         from dbo.commerza_customer_refresh_tokens r
+         join dbo.tbl_customerloginhistory h on h.clhid = r.clhid and h.plid = r.clid
+         join dbo.tbl_customerlogin c on c.clid = r.clid
+        where r.clhid = @lsid and r.token_hash = @hash`,
+      parsed);
+    if (!session) return { error: 'Invalid refresh token. Please sign in again.' };
+    if (session.status !== 1) return { error: 'Session has been logged out. Please sign in again.' };
+    if (!session.live) return { error: 'Your session has expired. Please sign in again.' };
+    if (session.active !== 1) return { error: 'This account is inactive. Please contact support.' };
+
+    // rotate; the hash condition makes a concurrent second use of the same token fail instead of forking the session
+    const next = newRefreshToken(parsed.lsid);
+    const rotated = await t.exec(
+      `update dbo.commerza_customer_refresh_tokens
+          set token_hash = @next, rotated_at = localtimestamp, expires_at = localtimestamp + make_interval(days => @days)
+        where clhid = @lsid and token_hash = @hash`,
+      { ...parsed, next: next.hash, days: REFRESH_DAYS });
+    if (rotated !== 1) return { error: 'Invalid refresh token. Please sign in again.' };
+    return { customer: { clid: session.cid, phone: session.phone }, refreshToken: next.token };
+  });
+
+  if (result.error) return reject(result.error);
+  return res.json({
+    status: 'true', message: 'Token refreshed.',
+    ...issueAccessToken(result.customer, parsed.lsid), refreshToken: result.refreshToken,
+  });
 }));
 
 /* ---------------------------------------------------------------- signed-in customer: profile */
@@ -258,6 +365,28 @@ const clidOf = (req) => {
   return clid;
 };
 const CUSTOMER_COLUMNS = 'clid, loginid, username, fname, lname, phone, emailid, referalcode, doc, active';
+
+// auth (customer): ends this token's session. Older tokens without `lsid` are not tracked, so there is nothing to end.
+router.post('/api/CustomerLogout', customerAuth, asyncHandler(async (req, res) => {
+  const clid = clidOf(req);
+  const lsid = Number(req.user.lsid);
+  if (Number.isInteger(lsid)) {
+    await shop.query('update dbo.tbl_customerloginhistory set status = 0 where clhid = @lsid and plid = @clid', { lsid, clid });
+    await ensureRefreshTable();
+    await shop.query('delete from dbo.commerza_customer_refresh_tokens where clhid = @lsid and clid = @clid', { lsid, clid });
+  }
+  return res.json({ status: 'true', message: 'Signed out.' });
+}));
+
+// auth (customer): ends every session of the customer, including this one.
+router.post('/api/CustomerLogoutAll', customerAuth, asyncHandler(async (req, res) => {
+  const clid = clidOf(req);
+  const rows = await shop.query(
+    'update dbo.tbl_customerloginhistory set status = 0 where plid = @clid and status = 1 returning clhid', { clid });
+  await ensureRefreshTable();
+  await shop.query('delete from dbo.commerza_customer_refresh_tokens where clid = @clid', { clid });
+  return res.json({ status: 'true', message: `Signed out of ${rows.length} session(s) on all devices.`, sessions: rows.length });
+}));
 
 async function loadCustomer(q, clid) {
   return q.queryOne(`select ${CUSTOMER_COLUMNS} from dbo.tbl_customerlogin where clid = @clid and did = @did limit 1`, { clid, did: DID });
