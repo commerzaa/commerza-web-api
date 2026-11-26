@@ -1,0 +1,18 @@
+{
+  "portal/DealsController.js": "portal/deals.js",
+  "portal/DealsDetailsController.js": "portal/deals-details.js",
+  "portal/DiamondCertification.js": "portal/diamond-certification.js",
+  "portal/DirectLoginController.js": "portal/direct-login.js",
+  "portal/Distribution_Chart.js": "portal/distribution-chart.js",
+  "portal/Dth_Payment.js": "portal/dth-payment.js",
+  "portal/Electricity_Payment.js": "portal/electricity-payment.js",
+  "portal/Emailblasting.js": "portal/emailblasting.js",
+  "portal/EVouchers.js": "portal/e-vouchers.js",
+  "portal/EVouchersDetails.js": "portal/e-vouchers-details.js",
+  "portal/FaqController.js": "portal/faq.js",
+  "portal/flight.js": "portal/flight.js",
+  "portal/Forgot_Password.js": "portal/forgot-password.js",
+  "portal/Franchise_ModelController.js": "portal/franchise-model.js",
+  "portal/Gas_Payment.js": "portal/gas-payment.js",
+  "portal/GetAccessToken.js": "portal/get-access-token.js"
+}

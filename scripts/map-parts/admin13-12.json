@@ -1,0 +1,11 @@
+{
+  "admin/Wallet_Settings.js": "admin/wallet-settings.js",
+  "admin/Wallet_status.js": "admin/wallet-status.js",
+  "admin/WebSiteCoinRate.js": "admin/web-site-coin-rate.js",
+  "admin/Withdrawal_History.js": "admin/withdrawal-history.js",
+  "admin/Withdrawal_Report.js": "admin/withdrawal-report.js",
+  "admin/WithdrawalSetting.js": "admin/withdrawal-setting.js",
+  "admin/WIthdrawalsUpload.js": "admin/w-ithdrawals-upload.js",
+  "admin/XSCOINACCOUNT.js": "admin/xscoinaccount.js",
+  "admin/All_Downline_Member_List_Admin.js": "admin/all-downline-member-list-admin.js"
+}

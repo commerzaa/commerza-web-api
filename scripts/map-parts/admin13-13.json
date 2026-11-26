@@ -1,0 +1,7 @@
+{
+  "admin/CommonController.js": "admin/common.js",
+  "admin/FranchiseStatementController.js": "admin/franchise-statement.js",
+  "admin/HomeController.js": "admin/home.js",
+  "admin/PageNotFoundController.js": "admin/page-not-found.js",
+  "admin/UpdateMemberProfileController.js": "admin/update-member-profile.js"
+}

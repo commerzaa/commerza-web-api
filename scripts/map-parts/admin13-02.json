@@ -1,0 +1,12 @@
+{
+  "admin/Pending_Withdrawals.js": "admin/pending-withdrawals.js",
+  "admin/Popup_news.js": "admin/popup-news.js",
+  "admin/Product_Purchase.js": "admin/product-purchase.js",
+  "admin/ProductList.js": "admin/product-list.js",
+  "admin/ProductManagement.js": "admin/product-management.js",
+  "admin/Profile_Update_History.js": "admin/profile-update-history.js",
+  "admin/Promotion_Email.js": "admin/promotion-email.js",
+  "admin/Promotional_SMS.js": "admin/promotional-sms.js",
+  "admin/Purchase_Bill.js": "admin/purchase-bill.js",
+  "admin/PurchaseBV.js": "admin/purchase-bv.js"
+}

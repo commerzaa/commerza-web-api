@@ -1,0 +1,6 @@
+/** Exports: PROPS-only descriptors of the C# property bag(s) in Models/ExcelProduct.cs: Excel_Product (table excel_product), Excel_Product_Detail
+ *   { PROPS: [PascalCase property names], TABLE?: '<EF table>', NOT_MAPPED?: [...] } per class name; use mapRows(rows, X.PROPS). No methods in C#. */
+'use strict';
+const Excel_Product = {"PROPS":["Id","MCID","CID","SCID","VCID","Code","ProductTitle","ShortDescription","FullDescription","KeyFeatures","UnitQty","Unit","StockIn","WarrentyInfoCare","ProductImages","SellMRP","DAP","Discount","DealsIds","GroupId","ReplacementDay","ProcurementSLA","CashOnDelivery","ShippingCharges","Weight_kg","Length_cms","Breadth_cms","Height_cms","ErrorReason","BranchId","CreatedDate","QCStatus"],"TABLE":"excel_product"};
+const Excel_Product_Detail = {"PROPS":["Id","MCID","CID","SCID","VCID","Code","ProductTitle","ShortDescription","FullDescription","KeyFeatures","UnitQty","Unit","StockIn","WarrentyInfoCare","ProductImages","SellMRP","DAP","Discount","DealsIds","GroupId","ReplacementDay","ProcurementSLA","CashOnDelivery","ShippingCharges","Weight_kg","Length_cms","Breadth_cms","Height_cms","ErrorReason","BranchId","CreatedDate","QCStatus","BranchName","MasterCategoryName","CategoryName","SubCategoryName","VatCategoryName","VatValue","DealsName","GroupName"]};
+module.exports = { Excel_Product, Excel_Product_Detail };

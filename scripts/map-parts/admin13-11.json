@@ -1,0 +1,14 @@
+{
+  "admin/Userwise_Details_ReportController.js": "admin/userwise-details-report.js",
+  "admin/UserWise_Growthwallet.js": "admin/user-wise-growthwallet.js",
+  "admin/UserWise_Shoppingwallet.js": "admin/user-wise-shoppingwallet.js",
+  "admin/UserWiseATCWalletFundTransferHistoryController.js": "admin/user-wise-atc-wallet-fund-transfer-history.js",
+  "admin/UserWiseATCWalletStatementsController.js": "admin/user-wise-atc-wallet-statements.js",
+  "admin/UserWiseIWalletFundTransferHistoryController.js": "admin/user-wise-i-wallet-fund-transfer-history.js",
+  "admin/UserWiseIWalletStatementsController.js": "admin/user-wise-i-wallet-statements.js",
+  "admin/Vehicle_Voucher.js": "admin/vehicle-voucher.js",
+  "admin/Vender_List.js": "admin/vender-list.js",
+  "admin/VendorTransactionReportController.js": "admin/vendor-transaction-report.js",
+  "admin/video_galleryController.js": "admin/video-gallery.js",
+  "admin/Visitor_news.js": "admin/visitor-news.js"
+}

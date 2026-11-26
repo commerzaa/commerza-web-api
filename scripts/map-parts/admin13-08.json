@@ -1,0 +1,12 @@
+{
+  "admin/Store_Transfer_Challen.js": "admin/store-transfer-challen.js",
+  "admin/subcatmaster.js": "admin/subcatmaster.js",
+  "admin/SubscriptionRequests.js": "admin/subscription-requests.js",
+  "admin/TakeImageController.js": "admin/take-image.js",
+  "admin/TDSReport.js": "admin/tds-report.js",
+  "admin/Team_Building_Bonus.js": "admin/team-building-bonus.js",
+  "admin/Team_Building_Setting.js": "admin/team-building-setting.js",
+  "admin/Testimonials.js": "admin/testimonials.js",
+  "admin/Text.js": "admin/text.js",
+  "admin/Ticket_Details.js": "admin/ticket-details.js"
+}

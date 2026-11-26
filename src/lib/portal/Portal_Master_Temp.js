@@ -1,0 +1,5 @@
+/** Exports: PROPS-only descriptors of the C# property bag(s) in Models/Portal_Master_Temp.cs: Portal_Master_Temp (table portal_master_temp)
+ *   { PROPS: [PascalCase property names], TABLE?: '<EF table>', NOT_MAPPED?: [...] }; use mapRows(rows, X.PROPS). No methods in C#. */
+'use strict';
+const Portal_Master_Temp = {"PROPS":["PMTID","VMID","REGNO","COMPANYNAME","CONTACTPERSON","MOBILENO","CATID","SCATID","PACKAGEID","COUNTRY","CID","STATE","SID","CITY","CTID","KEYWORD","PHOTO","ADDRESS","PINCODE","ACTIVE","ACCOUNTTYPE","KEYID","TITLE","URL","AID","CATEGORYNAME","SCATEGORYNAME","PACKAGENAME","PHOTOGALLERY","VIDEOGALLERY","PDF","AREANAME","LNAME","BUSINESS_STATUS","COMPANYDESC","KEYCTID","KEYAID","PRICE","REQUEST_DATE","APPROVED_DATE","QPAYREGNO","REFRAL_ID","INTRO_REFID","ISMANNUAL","LANKMARK","COMEMAILID","YEAROFESTABLE","ANNUALTURNOVER","NOOFEMPLOYEE","COMPANYIMAGE","DOC","COMPANYPROFILEIMAGE","AUTOCATID"],"TABLE":"portal_master_temp"};
+module.exports = { ...Portal_Master_Temp, Portal_Master_Temp };

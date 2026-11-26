@@ -1,0 +1,32 @@
+MISSING MODULES:
+Application
+DataTable
+HttpPostedFileBase
+int64
+sendMessageToMobile
+totallist
+WebClient
+CustomEncriptionAndDecription
+HttpCookie
+SessionExpireCheck
+
+ACTIONS NOT FOUND:
+Add_Purchase_Stock: Getkitdetils, insertStockFromVendor, EditAddedStockFromVendor, DeleteAddedStockFromVendor, Fetch_ChallanNo, Taxtype
+add_stock: Getkitdetils, insertStockFromVendor, EditAddedStockFromVendor, DeleteAddedStockFromVendor, Fetch_ChallanNo, Taxtype
+DirectReward: Index, AddDirectReward, GetRewardById, UpdateDirectReward, DeleteRewardById
+Direct_Member_Reward: Index, ExportReport
+DownlineReward: Index, AddDirectReward, GetRewardById, UpdateDirectReward, DeleteRewardById
+Downline_Member_Reward: Index, ExportReport
+Force_Matrics_Downline: ExportReport
+F_MatrixDownload: ExportReport
+List_Admin_Role: ExportReport, UpdateStatus
+List_Franchise_Role: ExportReport, UpdateStatus
+List_Member_Role: UpdateStatus
+Matrix_Business_Report: ExportReport, GetAllDownLineMeberByUserName, GetAllLeftSideMemberOrRightSide
+Member_Business_Report: ExportReport, GetAllDownLineMeberByUserName, GetAllLeftSideMemberOrRightSide
+Member_Joining_Reward: ExportReport
+Member_NEXT_RankList: ExportReport
+Member_RankList: ExportReport
+Member_Rank_Reward: ExportReport
+OrderPaymentConformation: Index, ExportReport, ApprovePaymentInBulk, UpdatePaymentStatus
+OrderPaymentPending: Index, ExportReport, ApprovePaymentInBulk, UpdatePaymentStatus
