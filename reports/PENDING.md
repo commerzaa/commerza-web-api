@@ -1,6 +1,7 @@
 # Pending port work: C:\Users\MY ASUS\cluster
 
-Written for: the project owner. Status on 2026-11-25. Porting was paused after admin batch 10.
+Written for: the project owner. Status on 2026-11-26. Every legacy controller is now ported. What is left is running it against a
+database and the go-live items below.
 
 ## Summary
 
@@ -11,446 +12,71 @@ Written for: the project owner. Status on 2026-11-25. Porting was paused after a
 | Franchise | 184 | 184 | 0 |
 | Shoping Portal Merchant Panel | 120 | 120 | 0 |
 | Payment Gateway (Shoping Portal Payment Gateway) | 3 | 3 | 0 |
-| MLM_Adminpanel | 497 (6 empty files) | 341 | **149** |
-| ClusterofferShopingPortal | 259 | 0 | **259** (plus 275 support classes) |
+| MLM_Adminpanel | 497 | 497 (incl. 6 empty files and 4 non-controller helpers, ported to `src/lib`) | 0 |
+| ClusterofferShopingPortal | 259 | 254 (+5 that are empty or not controllers) | 0 |
 
-"Ported" means every C# method exists in the JS and every module loads. None of it has been run against a database yet.
+"Ported" means every public action has a registered Express route and every module loads; `require('./src/app.js')` succeeds.
+**None of it has been run against a database yet.**
 
-Ported files use kebab-case names (`add_Admin_Role.cs` -> `src/modules/admin/add-admin-role.js`). `scripts/module-name-map.json` maps every legacy file to its JS file. Names below are the legacy C# names.
+How to check:
+- `node scripts/check-coverage.js <App> <prefix> [subfolder]` for admin/member/franchise/merchant (text search; actions built by
+  shared builder functions show up as false gaps there).
+- `node scripts/check-portal-routes.js [Controller ...]` for the portal: loads each module and compares the routes it really
+  registers with the C# actions. Result: 806 of 818 actions routed; the 12 others are helper methods (nested `RemotePost.Add/Post`,
+  `Generatehash512`, `SaveData`, `SendConfirmationToConcern`), not MVC actions.
 
-## 1. MLM_Adminpanel: 149 controllers pending
+Unrouted helpers in the other apps (ported as internal functions, called by the actions): Member `PayByPayYouMoney`, `SaveImage`,
+`EwalletType`, `RemotePost.Add/Post`; Franchise/Merchant `SendMail`, `SendMessage`, `ExportReport`, `ImageUploadMasterMethod`,
+`WriteDataIntoExcelWithFormats`, `ExportExcelForReporting`, `saveImage`, `DataUtility.*`.
 
-Source: `MLM_Adminpanel\Common\Controllers`. Libraries (`src/lib/admin`) and login are done. 16 controllers finished by batches 11-12 before they were stopped (OrderPaymentConformation, OrderPaymentPending, Pair_Income_SlabController, Payout_Reports, Payout_Statement, PayoutReportController, Pending_Kyc, Pending_KycNotallply, Pending_Links, Pendingkyc, PendingMemberKYC, PeofileUpdateController, PerformanceBonus, Process_Links, ROI_Level_Income_SlabController, Rollup_Income_Slab) pass the method check but did not get the agents' final review.
+## 1. Shopping Portal: decisions for the owner
 
-- OverallEarning_Report
-- OverAllEarningsController
-- Package_Binary_Setting
-- PackageDeliverySlip
-- Packed_Order
-- Payit_Forword_List
-- Paymode_Setting
-- Pending_Payout
-- Pending_RequestController
-- Pending_Withdrawals
-- Popup_news
-- Product_Purchase
-- ProductList
-- ProductManagement
-- Profile_Update_History
-- Promotion_Email
-- Promotional_SMS
-- Purchase_Bill
-- PurchaseBV
-- PurchasedBill
-- QCXTokenPrice
-- QuestionerAndAnswerController
-- QuestionListController
-- Rank_Reward
-- Recieved_BTC_Payments
-- ReferralBonus
-- ReferralBonusDetails
-- Refferal_Income_Slab
-- Region_MasterController
-- Registration_Plan_Setting
-- Reject_FranchiseController
-- Rejected_Links
-- RenewableNotification
-- Report_Refrence_For_All_ReportController
-- Repurchase_Income
-- RepurchaseMember_History
-- ResellerProductDetails
-- Reverse_TransactionController
-- ReversedShopping_M_M
-- Reward_Eligibility
-- RewardClaimRequest
-- Rewards_Achiver
-- RightDownLine_Member
-- ROI_SETTINGS
-- ROI_Status
-- ROIRate
-- RollupBonus
-- Royality_AchiverController
-- Royality_Reward_Eligibility_Admin
-- Royality_Statement
-- RoyalityAchivers
-- RoyalityIncome
-- Royalty_Reward
-- SalaryIncome
-- sendMessageToMobile
-- Setting
-- Settingedit
-- Shoping_Statement
-- Shopper_Reward_Setting
-- Shopper_RewardController
-- ShoppingCRDRReport
-- Shoppingwallet_M_M
-- Show_Member_Profile
-- Single_Leg_genology
-- Single_Leg_tree_Wthoutwcl
-- Single_Leg_Tree
-- Single_legtree
-- SingleLeg_Download
-- SlotSettings
-- Smart_Work_IncomeController
-- SmartBonus
-- SMS_History
-- SMS_Master
-- SMS_Schedule_List
-- SMS_Templates
-- Software_Updation
-- Sponcer_Trade
-- Sponsor_Leadership
-- Sponsor_Trade_Slab
-- Stock_LedgerController
-- Stock_Payement_Request
-- Stock_Transfer_M_To_M
-- StockistNotification
-- StockistPincode
-- Store_Delivery_Challan
-- Store_Transfer_Challen
-- subcatmaster
-- SubscriptionRequests
-- TakeImageController
-- TDSReport
-- Team_Building_Bonus
-- Team_Building_Setting
-- Testimonials
-- Text
-- Ticket_Details
-- TicketTakeImageController
-- Timeing_Reward
-- TokenAchiver
-- Topup_History
-- Total_Admin_Charge
-- Training_Tool_Admin
-- TransactionHistory
-- Transfer_Atc_In_Member_Wallet
-- Transfer_Btc_In_Member_Wallet
-- Transfer_Challan
-- TransferedAtcCoin
-- Travel_VoucherController
-- TravelFund
-- TreeIcon
-- TwoFA_Security
-- Unblock_Admin
-- Updated_Btc_History
-- Upgrade_package_List
-- UpgradeLevelIncome
-- UploadOrderDetails
-- UserGrowthBonusDetails
-- UserGrowthLeadershipBonusDetails
-- UserGrowthReferralBonusDetails
-- UserLeadershipBonusDetails
-- UserReferralBonusDetails
-- UserWise_Commissionwallet
-- Userwise_Details_ReportController
-- UserWise_Growthwallet
-- UserWise_Shoppingwallet
-- UserWiseATCWalletFundTransferHistoryController
-- UserWiseATCWalletStatementsController
-- UserWiseIWalletFundTransferHistoryController
-- UserWiseIWalletStatementsController
-- Vehicle_Voucher
-- Vender_List
-- VendorTransactionReportController
-- video_galleryController
-- Visitor_news
-- Wallet_Settings
-- Wallet_status
-- WebSiteCoinRate
-- Withdrawal_History
-- Withdrawal_Report
-- WithdrawalSetting
-- WIthdrawalsUpload
-- XSCOINACCOUNT
-- All_Downline_Member_List_Admin
-- CommonController
-- CustomEncriptionAndDecription
-- FranchiseStatementController
-- HomeController
-- PageNotFoundController
-- SessionExpireCheck
-- UpdateMemberProfileController
+1. `/portal/servicejewaria/MakePostpaidRecharge` returns 500 on purpose: the C# had two public methods with that name, so MVC threw
+   AmbiguousMatchException on every call (Dth/Electricity/Gas/DataCard/BroadBand views post there). Set `ambiguousMakePostpaid: false`
+   in `src/modules/portal/servicejewaria.js` to make it work.
+2. Android auto-login (`CustomerPanel/Link_ForAnroid`, `All_RechargeService_from_mobile`) and `Login_as_Mobile/Index` issue a login
+   token to anyone who knows a customer CLID (and DID). Kept public as in legacy; should get a real check.
+3. Login checks were ADDED where legacy was open and the action was dangerous: `Order_List/SendMail`, the PayU-signing
+   `ProceedToPayment` actions, `KYCCheck.InsertKYCViaCs`, `getdetails` (KYCCheck, Business_KYC), `Add_Product.saveImage`,
+   `ClassifiedAds.SendAdPostlMail`, `reviews.AddComment/Updatesingleproduct`, `view_all_notifications.Markasread`,
+   `PostShareManagement.ManageHistoryOfSessionForEachUser`, `SendEmailViaSelfAccount.SendEmailByApiSettingMethod`, `Wallet.WithdrawalList`.
+4. Still open as in legacy: `Change_Create_Invoice` Index/PrintInvoice (invoice and address data), `Common.GetAddressDetail` /
+   `DeleteMemberAddress` (logged in, but no ownership check).
+5. `CustomerPanel/MakePayment` PayU success/failure URLs are hard-coded to `http://localhost:41075/merchant/...` in legacy; kept.
+6. Single-segment URLs `/portal/<title>` go to BusinessDetails/Index unless another module registers that path (then that module wins).
+7. `customer/my-profile` goes to UserPanel/Member_Profile (RouteConfig maps it there first), not CustomerPanel/My_Profile.
 
-## 2. ClusterofferShopingPortal: not started
+## 2. Stored procedures / tables missing from `dbshopping.sql`
 
-Use the copy in `ClusterofferShopingPortal\ClusterofferShopingPortal` (newest, May 2026). `bc`, `clusteroffer.com` and `Payment Gateway\clusteroffer.in` are older copies that differ in 2-5 controllers. Database: Db_Shopping.
+These calls are kept with their legacy names; they fail (usually into the legacy catch branch) until the object exists in PostgreSQL:
+USP_CUSTOMER_INSURANCE_RECHARGE_REQUESTS, usp_DeleteProductFromOrder, USP_TRANSFERORDERTOBRANCH, USP_UPDATEORDERPRODUCTQUANTITY,
+USP_GETINSUFFICIENTPRODUCT_DETAILS, USP_INSERTBANKDETAISCUSTOMER, Usp_MYREVIEWDETAIL, USP_UPDATEREVIEW, usp_postNewAd,
+USP_GETAGENCY_SALEREPORTS, USP_GETBVSALEREPORTS, USP_GETSALEONPRODUCTREPORTS, usp_GetGiftVoucherReceiptDetails, table tbl_carriermaster.
+`Usp_ClickManagements` in the dump has no Mode 5/6 and a different parameter order: the live database must have a newer version.
+Earlier apps: usp_Fund_Recieve_From_Agency, Usp_TransferFundToUser, usp_All_FundsTransfer_history, Usp_Get_Help, USP_MANAGEGATEWAYRESPONSE.
 
-- Controllers: 259 (about 52,700 lines): 105 in the root folder, 148 in `CustomerPanel`, 6 in `UserPanel`.
-- Support classes (Models, DAL and others): 275 files, about 23,600 lines.
-- Already in the Express app: customer OTP login and addresses (`src/modules/customer-auth.js`), and the shopping endpoints of ClusterOfferAPI (cart, checkout, orders, products).
+Procs with several result sets (USP_ORDERDETAILS, USP_INVOICE_DETAILS, USP_INVOICE_DETAILS_FOR_PRINT, usp_InsertBulkProduct) need
+PostgreSQL functions that return all sets, or the later sets come back empty.
 
-### Controllers
+## 3. npm packages and files to deploy
 
-- AboutUsController
-- AdvertiseAndSellOuter
-- AdvertiseWithUsController
-- AffiliateProductController
-- AffiliateProgramController
-- AllDownlineMemberList
-- AllOuterDealsController
-- AllSellerListController
-- AllServiceJewariaController
-- BmsBlasting
-- BroadBand_Payment
-- Buisness_Plans
-- Bus
-- BusinessDeals
-- BusinessDetailsController
-- BusinessListController
-- BusinessListingController
-- BusinessProfile
-- ByersController
-- COOKIE_POLICY
-- Cart_ListController
-- ClassifiedAdsController
-- CommonController
-- ContactUsController
-- CustomerPanel/APIIntegration
-- CustomerPanel/APISettings
-- CustomerPanel/AccountStatement
-- CustomerPanel/ActivityTeamBonus
-- CustomerPanel/AdAccount
-- CustomerPanel/AdLinksManagement
-- CustomerPanel/AddCampaign
-- CustomerPanel/AddFund
-- CustomerPanel/AddMoneyController
-- CustomerPanel/AddMoney_mobileController
-- CustomerPanel/AddNewCommunity
-- CustomerPanel/AddTicket
-- CustomerPanel/Add_Product
-- CustomerPanel/Address
-- CustomerPanel/Address_Mobile
-- CustomerPanel/AllDeals
-- CustomerPanel/AllEmailsList
-- CustomerPanel/AllMobileList
-- CustomerPanel/AllTickets
-- CustomerPanel/All_News_Show
-- CustomerPanel/All_RechargeService_from_mobileController
-- CustomerPanel/Assign_PinCode
-- CustomerPanel/BillingDetails
-- CustomerPanel/Branch_Ladger
-- CustomerPanel/BuyPack
-- CustomerPanel/BuyPackage
-- CustomerPanel/BuySmsPack
-- CustomerPanel/Bv_Report
-- CustomerPanel/CampaignList
-- CustomerPanel/ChangePassword
-- CustomerPanel/Change_Create_Invoice
-- CustomerPanel/ChatHistory
-- CustomerPanel/Classfied
-- CustomerPanel/ClassifiedAds
-- CustomerPanel/Completed_Recharge
-- CustomerPanel/Completed_Recharge_ReceiptController
-- CustomerPanel/CreateDeal
-- CustomerPanel/CustomerDashBoard
-- CustomerPanel/CustomizeUrl
-- CustomerPanel/Deactivated_Dropdown_List
-- CustomerPanel/DealsOffers
-- CustomerPanel/DelasRequest
-- CustomerPanel/Earnings
-- CustomerPanel/EmailCampaignManagement
-- CustomerPanel/Falied_Recharge
-- CustomerPanel/Feedback
-- CustomerPanel/FreeBusinessKeywords
-- CustomerPanel/FullBrandedUrl
-- CustomerPanel/GenerateCoupon
-- CustomerPanel/IPNRECHARGESTATUSController
-- CustomerPanel/Invoices
-- CustomerPanel/KYCCheck
-- CustomerPanel/KYCController
-- CustomerPanel/KeywordPricing
-- CustomerPanel/LeadFromSystemViaLeadForm
-- CustomerPanel/LeadGenerator 
-- CustomerPanel/LeadershipBonus
-- CustomerPanel/Link_ForAnroid
-- CustomerPanel/Listings
-- CustomerPanel/LiveChat
-- CustomerPanel/MLMWallet
-- CustomerPanel/MLMwalletstatement
-- CustomerPanel/MakePayment
-- CustomerPanel/MakePaymentForPackageController
-- CustomerPanel/ManageBeneficiaryController
-- CustomerPanel/Manage_Attributes
-- CustomerPanel/Manage_Category
-- CustomerPanel/Manage_Dropdown_List
-- CustomerPanel/Manage_Products
-- CustomerPanel/MapLocation
-- CustomerPanel/MerchantCommissionReport
-- CustomerPanel/MerchantPayoutReport
-- CustomerPanel/Merchant_DownloadTemplate
-- CustomerPanel/Merchant_Invoice_List
-- CustomerPanel/Merchant_NonLiveProduct
-- CustomerPanel/Merchant_Sale_Reports
-- CustomerPanel/Merchant_UploadBulkImages
-- CustomerPanel/Merchant_UploadBulkProduct
-- CustomerPanel/MyAds
-- CustomerPanel/MyCommunity
-- CustomerPanel/MyCoupon
-- CustomerPanel/MyCustomerList
-- CustomerPanel/MyDownline
-- CustomerPanel/MyPackages
-- CustomerPanel/MyPayMode
-- CustomerPanel/MyPointEarnings
-- CustomerPanel/MyReferrals
-- CustomerPanel/My_Profile
-- CustomerPanel/NewCustomerDashBoard
-- CustomerPanel/NewsLetterSubscription
-- CustomerPanel/OrderInvoice
-- CustomerPanel/Order_List
-- CustomerPanel/PaidListing
-- CustomerPanel/PartiallyBrandedUrl
-- CustomerPanel/PassbookController
-- CustomerPanel/Passbook_mobileController
-- CustomerPanel/PasscodeController
-- CustomerPanel/PayItForward
-- CustomerPanel/PayItForwardList
-- CustomerPanel/PaymentMethods
-- CustomerPanel/Payout_Statement
-- CustomerPanel/Pending_Recharge
-- CustomerPanel/PhotoGallery
-- CustomerPanel/PostAnAd
-- CustomerPanel/PostShareManagement
-- CustomerPanel/Post_Blog
-- CustomerPanel/Posted_Blog
-- CustomerPanel/Posted_Classfied
-- CustomerPanel/PromoteReferral 
-- CustomerPanel/PurchasePackageController
-- CustomerPanel/PurchasedEmailPackage
-- CustomerPanel/PurchasedSMSPackage
-- CustomerPanel/Purchased_Voucher
-- CustomerPanel/Purchased_Voucher_ReceiptController
-- CustomerPanel/QCUploadBulkProduct
-- CustomerPanel/ReferralBonus
-- CustomerPanel/ReferralDashBoard
-- CustomerPanel/Sale_Reports
-- CustomerPanel/Selling_PinCode
-- CustomerPanel/SendBulkEmailToSystemUsersWithFiltration
-- CustomerPanel/SendBulkMsgToWhatsApp
-- CustomerPanel/SendEmailViaSelfAccount
-- CustomerPanel/SendSmsViaSelfAccount
-- CustomerPanel/SentEmailHistory
-- CustomerPanel/SentSmsHistory
-- CustomerPanel/ServicesHighlights
-- CustomerPanel/SmsCampaignManagement
-- CustomerPanel/Sms_ApiSetting
-- CustomerPanel/StatisticalReport
-- CustomerPanel/SubscribeUs
-- CustomerPanel/SubscriptionHistory
-- CustomerPanel/SupportRequest
-- CustomerPanel/TellFriends
-- CustomerPanel/Training
-- CustomerPanel/TransferToBankController
-- CustomerPanel/TransferToBank_mobileController
-- CustomerPanel/TreeView
-- CustomerPanel/UploadEmailData
-- CustomerPanel/UploadMobileData
-- CustomerPanel/User_Category
-- CustomerPanel/Vat_Categories
-- CustomerPanel/VideoGallery
-- CustomerPanel/Wallet
-- CustomerPanel/WorkingHours
-- CustomerPanel/dataset
-- CustomerPanel/kyc_mobileController
-- CustomerPanel/reviews
-- CustomerPanel/view_all_notifications
-- DataCard_Payment
-- Datetime
-- DealsController
-- DealsDetailsController
-- DiamondCertification
-- DirectLoginController
-- DistributerSessionExpireCheck
-- Distribution_Chart
-- Dth_Payment
-- EVouchers
-- EVouchersDetails
-- Electricity_Payment
-- Emailblasting
-- FaqController
-- Forgot_Password
-- Franchise_ModelController
-- Gas_Payment
-- GetAccessToken
-- HomeController
-- IPNController
-- Insurance_Payment
-- InvalidResourceController
-- Knowyourdiamond
-- LandingPageMaster
-- Landline_Payment
-- LeadGenerators
-- Login_as_MobileController
-- Login_as_sso
-- Login_as_yourchoice
-- Logout
-- MarketingToolsController
-- MechanismGrievance
-- OnlineDTHRechargeResponseController
-- OnlineElectricityRechargeResponseController
-- OnlineGASRechargeResponseController
-- OnlineInsuranceRechargeResponseController
-- OnlineOrderResponseController
-- OnlinePayment
-- OnlinePaymentResponseController
-- OnlinePrepaidRechargeResponseController
-- OnlineRechargeResponseController
-- Orboarding_FeeController
-- OrderComplete
-- OrderDirectLoginController
-- OuterBusinessKeywords
-- OuterFreeBusinessKeywords
-- OuterPages
-- PageNotFoundController
-- PoliciesController
-- Pricing
-- PrivacyPolicyController
-- Proceed_To_CheckOutController
-- Product
-- Product_Detail
-- PromosAndAdvertisement
-- RESTRICTED_AND_PROHIBITEDITEMS
-- ReferralOuterController
-- ReferralProgramController
-- ReturnPlicyController
-- Route
-- SearchNotFoundController
-- SiteMapController
-- SocialMediaPromo
-- Support
-- SurfNowController
-- TermofuseController
-- TraffficBoosterController
-- Train
-- UserPanel/BANK_ACCOUNTS_MERCHANT
-- UserPanel/Business_KYC
-- UserPanel/Member_Profile
-- UserPanel/Orders
-- UserPanel/Proceed_To_Payment
-- UserPanel/Wishlist
-- VisitorConfirmation
-- VisitorSignupController
-- WebSiteBuilderController
-- WhatIsEblaaController
-- WhatsappMarketing
-- business_plan
-- flight
-- paymentinforamtion
-- ringsizer
-- servicejewariaController
-- servicejewaria_MobileController
-- termandcondition
-- video_gallery
+- Not installed, lazy-required (the module loads; only the handler that needs one fails): `xlsx`, `exceljs`, `adm-zip`, `sharp`
+  (without sharp, images are saved unresized). Needed for bulk product/image upload, Excel exports, email/mobile data upload.
+- Copy from the live server into `uploads/`: `add-confirm-page.html` (ClassifiedAds/Index returns 500 without it) and
+  `OrderStatusUpdate.html` (Order_List status mails; or set `ORDER_STATUS_UPDATE_TEMPLATE`).
 
-## 3. Library file names
+## 4. Library file names
 
-`src/lib/**` still uses the legacy class names (e.g. `UtilityClass.js`). Rename them to kebab-case in one pass after the remaining ports, using the same before/after route check as the module rename.
+`src/lib/**` still uses the legacy class names (e.g. `UtilityClass.js`). Rename them to kebab-case in one pass, using the same
+before/after route check as the module rename.
 
-## 4. Not code, but needed before go-live
+## 5. Not code, but needed before go-live
 
-1. Fill in `.env`: PostgreSQL connections, JWT secret, encryption key, and the credentials that were hard-coded in the old code (PayU, Razorpay, SMS, SMTP, ShipRocket, IP lookup, admin mail accounts).
+1. Fill in `.env`: PostgreSQL connections, JWT secret, encryption key, and the credentials that were hard-coded in the old code (PayU,
+   Razorpay, PayPal (`PAYPAL_*`), SMS, SMTP, `NO_REPLY_MAIL` (empty => profile/bank/billing confirmation mails are skipped, as legacy),
+   ShipRocket, IP lookup, admin mail accounts, `TEMPLATE_SHEET_PASSWORD`).
 2. Run everything against a copy of the database. No SQL has been executed yet.
 3. Rotate every credential that was in the legacy Web.config files and code.
-4. Decide the security items raised during the port: password-only store login, decrypted passwords shown to admins, SMTP passwords on the Email Account page, block.io key in an error message, payment-gateway SaveData, master OTP code.
-5. Some stored procedures are missing from the SQL dumps and must exist in PostgreSQL (e.g. usp_Fund_Recieve_From_Agency, Usp_TransferFundToUser, usp_All_FundsTransfer_history, Usp_Get_Help, USP_MANAGEGATEWAYRESPONSE).
-6. Load the seed data: `database/seed_country_state.sql` (db_shopping) and `database/seed_country_state_affiliate.sql` (db_affiliate).
+4. Decide the security items raised during the port: password-only store login, decrypted passwords shown to admins, SMTP passwords on
+   the Email Account page, block.io key in an error message, payment-gateway SaveData, master OTP code, plus section 1 above.
+5. Load the seed data: `database/seed_country_state.sql` (db_shopping) and `database/seed_country_state_affiliate.sql` (db_affiliate).

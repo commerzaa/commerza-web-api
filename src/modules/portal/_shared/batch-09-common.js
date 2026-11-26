@@ -264,9 +264,12 @@ function buildRechargePaymentRouter(cfg) {
   router.all(`/portal/${C}/GetJewriaCashPoints{/:id}`, ...ps.customerOr('error^loginrequired'), asyncHandler(async (req, res) => {
     const { UserName, TransactionPassword, JP } = req.p;
     let Ewallet = '0.00'; let Coinwallet = '0.00'; let Commition = '0.00'; let PointWallet = '0.00';
+    // PORT-NOTE (legacy bug reproduced): the C# passed its arguments POSITIONALLY ("USP_JewriaCashPointDetails @DISTRIBUTORID,@MODE,@USERNAME,
+    // @TRANSACTIONPASSWORD,@JP") to a proc declared (@DISTRIBUTORID,@MODE,@JP,@USERNAMEJC,@TRANSACTIONPASSWORDJC,...), so UserName went into @JP,
+    // the encrypted password into @USERNAMEJC and JP into @TRANSACTIONPASSWORDJC. Same binding as servicejewaria-mobile.js / batch-17.
     const Getwalletdiscount = await db.proc(DB, 'usp_jewriacashpointdetails', {
-      distributorid: '1', mode: '2', username: UserName ?? null,
-      transactionpassword: await UtilityClass.Encryptword(TransactionPassword ?? null), jp: JP ?? null,
+      distributorid: 1, mode: 2, jp: UserName ?? null,
+      usernamejc: await UtilityClass.Encryptword(TransactionPassword ?? null), transactionpasswordjc: JP ?? null,
     });
     for (const Items of Getwalletdiscount) {
       Ewallet = String(col(Items, 'EWALLETCONSUMEPER') ?? '');
