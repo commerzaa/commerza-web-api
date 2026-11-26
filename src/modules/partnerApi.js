@@ -114,6 +114,8 @@ router.post('/api/partner/register', asyncHandler(async (req, res) => {
     const myRefCode = `CMZ-P${nextPmid}`;
 
     let introPlid = null;
+    let parentPlid = null;
+    let communitySide = null;
     let refralId = null;
     if (String(referralCode || '').trim()) {
       const refRow = await t.queryOne(
@@ -123,17 +125,37 @@ router.post('/api/partner/register', asyncHandler(async (req, res) => {
       if (refRow) {
         introPlid = Number(refRow.plid);
         refralId = refRow.referalcode;
+        const rawSide = String(req.body?.side || '').trim().toLowerCase();
+        let targetSideNum = rawSide === 'right' || rawSide === '2' ? 2 : rawSide === 'left' || rawSide === '1' ? 1 : 0;
+        if (!targetSideNum) {
+          const leftTaken = await t.queryOne(
+            'SELECT plid FROM portal_login WHERE parent_plid = @p AND COALESCE(communityside, 1) = 1 LIMIT 1',
+            { p: introPlid }
+          );
+          targetSideNum = leftTaken ? 2 : 1;
+        }
+        let cursor = introPlid;
+        for (let depth = 0; depth < 50; depth++) {
+          const child = await t.queryOne(
+            'SELECT plid FROM portal_login WHERE parent_plid = @p AND COALESCE(communityside, 1) = @s LIMIT 1',
+            { p: cursor, s: targetSideNum }
+          );
+          if (!child) break;
+          cursor = Number(child.plid);
+        }
+        parentPlid = cursor;
+        communitySide = targetSideNum;
       }
     }
 
     await t.query(
       `INSERT INTO portal_login
         (plid, pmid, loginid, password, active, isactive, username, fname, lname, phone, emailid,
-         referalcode, intro_plid, refral_id, ismerchantpanelaccepted, doc)
+         referalcode, intro_plid, parent_plid, communityside, refral_id, ismerchantpanelaccepted, doc)
        VALUES
         (@plid, @pmid, @email, @password, true, true, @email, @fname, @lname, @phone, @email,
-         @myRefCode, @introPlid, @refralId, 1, NOW())`,
-      { plid: nextPlid, pmid: nextPmid, email, password: encPassword, fname, lname, phone, myRefCode, introPlid, refralId }
+         @myRefCode, @introPlid, @parentPlid, @communitySide, @refralId, 1, NOW())`,
+      { plid: nextPlid, pmid: nextPmid, email, password: encPassword, fname, lname, phone, myRefCode, introPlid, parentPlid, communitySide, refralId }
     );
 
     await t.query(
@@ -911,7 +933,7 @@ router.get('/api/partner/products', ...guard, asyncHandler(async (req, res) => {
             mp.catid, mp.subcategoryid, pc.gmid, gm.groupname, pc.catname, sc.scatname,
             mp.shotdescription, mp.fulldescription, mp.keyfeatures,
             mp.minorderqty, mp.maxorderqty, mp.createddate, mp.modifydate,
-            sp.qty, sp.unit, sp.color, sp.size, sp.stockin, sp.stockout, sp.stocknet,
+            sp.qty, sp.unit, sp.color, sp.color_hex, sp.size, sp.stockin, sp.stockout, sp.stocknet,
             sp.isoutofstock, sp.productimages, sp.actualprice, sp.sellmrp, sp.dap,
             sp.discountpercentage, sp.isallowcoupon, sp.cashondelivery, sp.shippingcharges, sp.replacementday,
             sp.procurementsla, sp.specification, sp.manufacturerdetails,
@@ -982,7 +1004,7 @@ async function insertVariantTx(t, { mprid, pmid, productCode, catid, subcatid, v
 
   await t.query(
     `INSERT INTO ims_subproduct (
-       sprid, subprcode, prskucode, mprid, qty, unit, color, size,
+       sprid, subprcode, prskucode, mprid, qty, unit, color, color_hex, size,
        stockin, stockout, stocknet, isoutofstock, productimages,
        actualprice, sellmrp, dap, discountpercentage, isallowcoupon,
        cashondelivery, shippingcharges, replacementday, procurementsla,
@@ -990,7 +1012,7 @@ async function insertVariantTx(t, { mprid, pmid, productCode, catid, subcatid, v
        specification, manufacturerdetails, createddate, modifydate,
        isactive, isverified
      ) VALUES (
-       @sprid, @subPrCode, @subPrCode, @mprid, @stock, @unit, @color, @size,
+       @sprid, @subPrCode, @subPrCode, @mprid, @stock, @unit, @color, @colorHex, @size,
        @stock, 0, @stock, @outOfStock, @images,
        @sellingPrice, @sellMrp, @sellingPrice, @discountPct, @allowCoupon,
        @cod, @shipping, @replacementDay, @sla,
@@ -1005,6 +1027,7 @@ async function insertVariantTx(t, { mprid, pmid, productCode, catid, subcatid, v
       stock,
       unit: String(v.unit || 'pcs'),
       color: String(v.color || ''),
+      colorHex: String(v.colorHex || v.color_hex || ''),
       size: String(v.size || ''),
       outOfStock: stock <= 0,
       images: imagesStr,
@@ -1234,6 +1257,7 @@ router.put('/api/partner/products/:sprid', ...guard, requireApprovedSubscription
            actualprice = COALESCE(@sellingPrice, actualprice),
            unit = COALESCE(@unit, unit),
            color = COALESCE(@color, color),
+           color_hex = COALESCE(@colorHex, color_hex),
            size = COALESCE(@size, size),
            productimages = COALESCE(@images, productimages),
            qty = COALESCE(@stock, qty),
@@ -1259,6 +1283,7 @@ router.put('/api/partner/products/:sprid', ...guard, requireApprovedSubscription
         allowCoupon: b.isAllowCoupon !== undefined ? Boolean(b.isAllowCoupon) : null,
         unit: validUnit,
         color: b.color ?? null,
+        colorHex: b.colorHex ?? b.color_hex ?? null,
         size: validSize,
         images: imagesStr,
         stock: stockVal,
@@ -1846,6 +1871,8 @@ router.get('/api/partner/referrals', ...guard, asyncHandler(async (req, res) => 
   const referrals = await db.query(
     DB,
     `SELECT pm.pmid, pm.companyname, pm.comemailid, pm.mobileno, pm.isverified, pm.doc AS joined_at,
+            COALESCE(NULLIF(pl.referalcode, ''), 'CMZ-P' || pm.pmid::text) AS username,
+            CASE WHEN pl.communityside = 2 THEN 'Right' ELSE 'Left' END AS side,
             sub.package_name, sub.amount_paid, sub.status AS subscription_status
      FROM portal_login pl
      JOIN portal_master pm ON pm.pmid = pl.pmid
@@ -1859,6 +1886,51 @@ router.get('/api/partner/referrals', ...guard, asyncHandler(async (req, res) => 
      ORDER BY pm.pmid DESC`,
     { plid: me?.plid || plid, rc: referralCode }
   );
+
+  const rootPlid = Number(me?.plid || plid);
+  const treeNodes = await db.query(
+    DB,
+    `WITH RECURSIVE btree AS (
+       SELECT pl.plid, pl.pmid, COALESCE(pl.parent_plid, pl.intro_plid) AS parent_plid,
+              pl.intro_plid,
+              CASE WHEN pl.communityside = 2 THEN 'Right' WHEN pl.communityside = 1 THEN 'Left' ELSE '' END AS side,
+              COALESCE(NULLIF(pl.referalcode, ''), 'CMZ-P' || pl.pmid::text) AS username,
+              CAST('' AS VARCHAR(20)) AS root_leg,
+              0 AS level
+       FROM portal_login pl
+       WHERE pl.plid = @rootPlid
+       UNION ALL
+       SELECT c.plid, c.pmid, COALESCE(c.parent_plid, c.intro_plid) AS parent_plid,
+              c.intro_plid,
+              CASE WHEN c.communityside = 2 THEN 'Right' ELSE 'Left' END AS side,
+              COALESCE(NULLIF(c.referalcode, ''), 'CMZ-P' || c.pmid::text) AS username,
+              CAST(CASE WHEN b.level = 0 THEN (CASE WHEN c.communityside = 2 THEN 'Right' ELSE 'Left' END) ELSE b.root_leg END AS VARCHAR(20)) AS root_leg,
+              b.level + 1 AS level
+       FROM portal_login c
+       JOIN btree b ON COALESCE(c.parent_plid, c.intro_plid) = b.plid
+       WHERE b.level < 8
+     )
+     SELECT bt.plid, bt.pmid, bt.parent_plid, bt.intro_plid, bt.side, bt.username, bt.root_leg, bt.level,
+            pm.companyname AS shop_name, pm.isverified,
+            COALESCE(sub.package_name, 'Free') AS package_name,
+            COALESCE(sub.amount_paid, 0)::numeric(12,2) AS package_amount
+     FROM btree bt
+     JOIN portal_master pm ON pm.pmid = bt.pmid
+     LEFT JOIN LATERAL (
+       SELECT package_name, amount_paid
+       FROM commerza_partner_subscriptions s
+       WHERE s.pmid = pm.pmid AND s.status = 'approved'
+       ORDER BY s.id DESC LIMIT 1
+     ) sub ON TRUE
+     ORDER BY bt.level ASC, bt.side ASC, bt.plid ASC`,
+    { rootPlid }
+  );
+
+  const descendants = treeNodes.filter((n) => n.level > 0);
+  const leftNodes = descendants.filter((n) => String(n.root_leg).toLowerCase() === 'left');
+  const rightNodes = descendants.filter((n) => String(n.root_leg).toLowerCase() === 'right');
+  const leftBv = leftNodes.reduce((s, n) => s + Number(n.package_amount || 0), 0);
+  const rightBv = rightNodes.reduce((s, n) => s + Number(n.package_amount || 0), 0);
 
   const totalReferralEarnings = await db.scalar(
     DB,
@@ -1879,8 +1951,16 @@ router.get('/api/partner/referrals', ...guard, asyncHandler(async (req, res) => 
       verifiedReferred,
       totalReferralBusiness,
       totalReferralEarnings: Number(totalReferralEarnings || 0),
+      leftCount: leftNodes.length,
+      rightCount: rightNodes.length,
+      leftBv,
+      rightBv,
     },
     referrals,
+    binaryTree: {
+      rootPlid,
+      nodes: treeNodes,
+    },
   });
 }));
 

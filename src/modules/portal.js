@@ -13,7 +13,8 @@ if (fs.existsSync(dir)) {
   for (const f of fs.readdirSync(dir).sort()) {
     if (!f.endsWith('.js')) continue;
     const mod = require(path.join(dir, f));
-    router.use('/', mod && mod.router ? mod.router : mod);
+    const r = mod && mod.router ? mod.router : mod;
+    if (typeof r === 'function') router.use('/', r);
   }
 }
 module.exports = router;

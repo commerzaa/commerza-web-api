@@ -103,6 +103,10 @@ async function ensureCommerzaSchema() {
       ADD COLUMN IF NOT EXISTS image_url TEXT NOT NULL DEFAULT '';
     ALTER TABLE dbo.product_subcategory
       ADD COLUMN IF NOT EXISTS image_url TEXT NOT NULL DEFAULT '';
+    ALTER TABLE dbo.portal_login
+      ADD COLUMN IF NOT EXISTS parent_plid BIGINT;
+    ALTER TABLE dbo.ims_subproduct
+      ADD COLUMN IF NOT EXISTS color_hex VARCHAR(20) NOT NULL DEFAULT '';
 
     CREATE TABLE IF NOT EXISTS dbo.commerza_coupons (
       id SERIAL PRIMARY KEY,
@@ -360,10 +364,26 @@ async function ensureCommerzaSchema() {
   `;
   await db.query('shopping', sql);
 
-  // Backfill Unique Partner ID (referalcode) for any existing partners missing one
+  // Backfill Unique Partner ID (referalcode) and Binary Tree parent_plid / communityside
   await db.query(
     'shopping',
     "UPDATE dbo.portal_login SET referalcode = 'CMZ-P' || pmid::text WHERE COALESCE(TRIM(referalcode), '') = '' AND pmid IS NOT NULL"
+  ).catch(() => { });
+  await db.query(
+    'shopping',
+    'UPDATE dbo.portal_login SET parent_plid = intro_plid WHERE parent_plid IS NULL AND intro_plid IS NOT NULL'
+  ).catch(() => { });
+  await db.query(
+    'shopping',
+    `WITH ranked AS (
+       SELECT plid, parent_plid, ROW_NUMBER() OVER (PARTITION BY parent_plid ORDER BY plid ASC) AS rn
+       FROM dbo.portal_login
+       WHERE parent_plid IS NOT NULL AND COALESCE(communityside, 0) = 0
+     )
+     UPDATE dbo.portal_login l
+     SET communityside = CASE WHEN r.rn % 2 = 1 THEN 1 ELSE 2 END
+     FROM ranked r
+     WHERE l.plid = r.plid`
   ).catch(() => { });
 
   // Seed default backend Units if empty
