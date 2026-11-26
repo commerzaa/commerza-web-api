@@ -1,0 +1,18 @@
+Checked by loading each module and listing its registered routes.
+
+MISSING MODULES:
+CustomerPanel/dataset (0 actions, 1 lines)
+Datetime (0 actions, 1 lines)
+DistributerSessionExpireCheck (0 actions, 20 lines)
+Route (0 actions, 1 lines)
+UserPanel/BANK_ACCOUNTS_MERCHANT (0 actions, 39 lines)
+
+LOAD ERRORS:
+
+
+ACTIONS WITHOUT A ROUTE:
+CustomerPanel/MakePayment [customer-panel-make-payment.js]: Add, Post
+CustomerPanel/MakePaymentForPackage [customer-panel-make-payment-for-package.js]: Add, Post
+OnlineOrderResponse [online-order-response.js]: SendConfirmationToConcern
+OnlinePayment [online-payment.js]: ProceedToPayment, Add, Post, Generatehash512, SaveData
+UserPanel/Proceed_To_Payment [user-panel-proceed-to-payment.js]: Add, Post

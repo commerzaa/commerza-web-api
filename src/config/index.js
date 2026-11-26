@@ -183,5 +183,16 @@ module.exports = {
     BFXWalletApiKey: env.BFX_WALLET_API_KEY || '', BFXWalletUrl: env.BFX_WALLET_URL || '',
     BluefoxAPITokenKey: env.BLUEFOX_API_TOKEN_KEY || '',
     Baseurl1: env.BASE_URL_1 || '', Baseurl2: env.BASE_URL_2 || '', Baseurl3: env.BASE_URL_3 || '',
+    // ---- Shopping Portal keys (ClusterofferShopingPortal Web.config; secrets come from env only) ----
+    Website: env.PORTAL_WEBSITE || 'https://clusteroffer.com',
+    Weburl: env.PORTAL_WEBURL || 'https://clusteroffer.com/',
+    AppURL: env.PORTAL_APP_URL || 'https://clusteroffer.com/Kreazlife_app.apk',
+    DelasImagePath: env.DEALS_IMAGE_PATH || 'Deals_Images',
+    DelasThumbleImagePath: env.DEALS_THUMB_IMAGE_PATH || 'DealsThumble_Images',
+    PayPalBusinessEmail: env.PAYPAL_BUSINESS_EMAIL || '',
+    PayPalApiUserName: env.PAYPAL_API_USERNAME || '',
+    PayPalApiPassword: env.PAYPAL_API_PASSWORD || '',
+    PayPalApiSignature: env.PAYPAL_API_SIGNATURE || '',
+    TemplateSheetPassword: env.TEMPLATE_SHEET_PASSWORD || '',
   },
 };
