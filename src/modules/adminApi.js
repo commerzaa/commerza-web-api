@@ -472,17 +472,45 @@ router.patch('/api/admin/shops/:pmid/verify', ...guard, asyncHandler(async (req,
 router.get('/api/admin/products', ...guard, asyncHandler(async (req, res) => {
   await ensureCommerzaSchema();
   const statusFilter = req.query.status; // 'all' | 'pending' | 'approved' | 'rejected'
+  const search = String(req.query.search || '').trim();
+  const pmidFilter = parseInt(req.query.pmid || 0, 10) || 0;
+  const catidFilter = parseInt(req.query.catid || 0, 10) || 0;
+  const page = Math.max(1, parseInt(req.query.page || 1, 10) || 1);
+  const limit = Math.min(200, Math.max(1, parseInt(req.query.limit || 25, 10) || 25));
+  const offset = (page - 1) * limit;
+
   let where = '1=1';
-  if (statusFilter === 'pending') where = 'COALESCE(sp.isverified, 0) = 0';
-  else if (statusFilter === 'approved') where = 'COALESCE(sp.isverified, 0) = 1';
-  else if (statusFilter === 'rejected') where = 'COALESCE(sp.isverified, 0) = 2';
+  if (statusFilter === 'pending') where += ' AND COALESCE(sp.isverified, 0) = 0';
+  else if (statusFilter === 'approved') where += ' AND COALESCE(sp.isverified, 0) = 1';
+  else if (statusFilter === 'rejected') where += ' AND COALESCE(sp.isverified, 0) = 2';
+
+  if (pmidFilter > 0) where += ' AND mp.companyid = @pmidFilter';
+  if (catidFilter > 0) where += ' AND mp.catid = @catidFilter';
+  if (search) {
+    where += ` AND (
+      mp.producttitle ILIKE @q OR sp.subprcode ILIKE @q OR mp.productcode ILIKE @q
+      OR pm.companyname ILIKE @q OR pc.catname ILIKE @q
+    )`;
+  }
+
+  const params = { pmidFilter, catidFilter, q: `%${search}%`, limit, offset };
+  const total = Number(await db.scalar(
+    DB,
+    `SELECT COUNT(*)::int
+     FROM ims_subproduct sp
+     JOIN ims_masterproduct mp ON mp.mprid = sp.mprid
+     LEFT JOIN portal_master pm ON pm.pmid = mp.companyid
+     LEFT JOIN product_category pc ON pc.catid = mp.catid
+     WHERE ${where}`,
+    params
+  ) || 0);
 
   const products = await db.query(
     DB,
     `SELECT sp.sprid, sp.subprcode, sp.prskucode, sp.mprid, mp.producttitle, mp.productcode, mp.companyid AS pmid,
             pm.companyname, pc.gmid, gm.groupname, mp.catid, pc.catname, mp.subcategoryid, sc.scatname,
             mp.shotdescription, mp.fulldescription, mp.keyfeatures, mp.createddate,
-            sp.qty, sp.unit, sp.color, sp.size, sp.sellmrp, sp.dap, sp.discountpercentage,
+            sp.qty, sp.unit, sp.color, sp.color_hex, sp.size, sp.sellmrp, sp.dap, sp.discountpercentage,
             sp.cashondelivery, sp.shippingcharges, sp.replacementday, sp.procurementsla, sp.specification,
             sp.productimages, sp.isactive, sp.isverified,
             COALESCE(sp.weight_kg, meta.weight_kg) AS weight_kg,
@@ -499,7 +527,9 @@ router.get('/api/admin/products', ...guard, asyncHandler(async (req, res) => {
      LEFT JOIN product_subcategory sc ON sc.scatid = mp.subcategoryid
      LEFT JOIN commerza_product_meta meta ON meta.sprid = sp.sprid
      WHERE ${where}
-     ORDER BY mp.mprid DESC, sp.sprid DESC`
+     ORDER BY mp.mprid DESC, sp.sprid DESC
+     LIMIT @limit OFFSET @offset`,
+    params
   );
 
   const sprids = products.map((p) => p.sprid);
@@ -526,7 +556,11 @@ router.get('/api/admin/products', ...guard, asyncHandler(async (req, res) => {
     };
   });
 
-  res.json({ status: 'true', products: enriched });
+  res.json({
+    status: 'true',
+    products: enriched,
+    pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) },
+  });
 }));
 
 router.patch('/api/admin/products/:sprid/toggle-active', ...guard, asyncHandler(async (req, res) => {
@@ -787,8 +821,25 @@ router.patch('/api/admin/products/:sprid/review', ...guard, asyncHandler(async (
 }));
 
 // ---- Orders & Disputes ---------------------------------------------------------------------
-router.get('/api/admin/orders', ...guard, asyncHandler(async (_req, res) => {
+router.get('/api/admin/orders', ...guard, asyncHandler(async (req, res) => {
   await ensureCommerzaSchema();
+  const status = String(req.query.status || 'all').toLowerCase();
+  const search = String(req.query.search || '').trim();
+  const page = Math.max(1, parseInt(req.query.page || 1, 10) || 1);
+  const limit = Math.min(200, Math.max(1, parseInt(req.query.limit || 25, 10) || 25));
+  const offset = (page - 1) * limit;
+
+  let where = '1=1';
+  if (status && status !== 'all') where += ' AND o.fulfillment_status = @status';
+  if (search) where += ' AND (o.order_number ILIKE @q OR o.customer_name ILIKE @q OR o.customer_phone ILIKE @q OR pm.companyname ILIKE @q)';
+
+  const params = { status, q: `%${search}%`, limit, offset };
+  const total = Number(await db.scalar(
+    DB,
+    `SELECT COUNT(*)::int FROM commerza_orders o LEFT JOIN portal_master pm ON pm.pmid = o.pmid WHERE ${where}`,
+    params
+  ) || 0);
+
   const orders = await db.query(
     DB,
     `SELECT o.*, pm.companyname,
@@ -798,9 +849,16 @@ router.get('/api/admin/orders', ...guard, asyncHandler(async (_req, res) => {
      LEFT JOIN LATERAL (
        SELECT * FROM commerza_shipments sh WHERE sh.order_id = o.id ORDER BY sh.id DESC LIMIT 1
      ) s ON TRUE
-     ORDER BY o.id DESC`
+     WHERE ${where}
+     ORDER BY o.id DESC
+     LIMIT @limit OFFSET @offset`,
+    params
   );
-  res.json({ status: 'true', orders });
+  res.json({
+    status: 'true',
+    orders,
+    pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) },
+  });
 }));
 
 router.patch('/api/admin/orders/:id/status', ...guard, asyncHandler(async (req, res) => {
@@ -997,14 +1055,48 @@ router.patch('/api/admin/topups/:id/review', ...guard, asyncHandler(async (req, 
 router.get('/api/admin/members', ...guard, asyncHandler(async (req, res) => {
   await ensureCommerzaSchema();
   const filter = String(req.query.filter || 'all').toLowerCase();
+  const kycStatus = String(req.query.kycStatus || 'ALL').toUpperCase();
+  const search = String(req.query.search || '').trim();
+  const page = Math.max(1, parseInt(req.query.page || 1, 10) || 1);
+  const limit = Math.min(200, Math.max(1, parseInt(req.query.limit || 25, 10) || 25));
+  const offset = (page - 1) * limit;
+
   let where = '1=1';
   if (filter === 'paid') {
-    where = "sub.status = 'approved' AND COALESCE(pm.active, true) = true";
+    where += " AND sub.status = 'approved' AND COALESCE(pm.active, true) = true";
   } else if (filter === 'free') {
-    where = "COALESCE(sub.status, '') != 'approved' AND COALESCE(pm.active, true) = true";
+    where += " AND COALESCE(sub.status, '') != 'approved' AND COALESCE(pm.active, true) = true";
   } else if (filter === 'blocked') {
-    where = 'COALESCE(pm.active, true) = false';
+    where += ' AND COALESCE(pm.active, true) = false';
   }
+  if (['PENDING', 'APPROVED', 'REJECTED'].includes(kycStatus)) {
+    where += " AND COALESCE(sd.kyc_all_status, 'PENDING') = @kycStatus";
+  }
+  if (search) {
+    where += ` AND (
+      pm.pmid::text ILIKE @q OR COALESCE(pl.referalcode, '') ILIKE @q
+      OR pm.companyname ILIKE @q OR pm.mobileno ILIKE @q
+      OR COALESCE(pm.comemailid, '') ILIKE @q OR COALESCE(pl.emailid, '') ILIKE @q
+    )`;
+  }
+
+  const params = { kycStatus, q: `%${search}%`, limit, offset };
+  const total = Number(await db.scalar(
+    DB,
+    `SELECT COUNT(*)::int
+     FROM portal_master pm
+     LEFT JOIN LATERAL (
+       SELECT plid, pmid, emailid, referalcode
+       FROM portal_login l WHERE l.pmid = pm.pmid ORDER BY l.plid ASC LIMIT 1
+     ) pl ON TRUE
+     LEFT JOIN commerza_shop_details sd ON sd.pmid = pm.pmid
+     LEFT JOIN LATERAL (
+       SELECT status FROM commerza_partner_subscriptions s
+       WHERE s.pmid = pm.pmid AND s.status = 'approved' ORDER BY s.id DESC LIMIT 1
+     ) sub ON TRUE
+     WHERE ${where}`,
+    params
+  ) || 0);
 
   const members = await db.query(
     DB,
@@ -1068,10 +1160,16 @@ router.get('/api/admin/members', ...guard, asyncHandler(async (req, res) => {
        WHERE w.pmid = pm.pmid
      ) wt ON TRUE
      WHERE ${where}
-     ORDER BY pm.pmid DESC`
+     ORDER BY pm.pmid DESC
+     LIMIT @limit OFFSET @offset`,
+    params
   );
 
-  res.json({ status: 'true', members });
+  res.json({
+    status: 'true',
+    members,
+    pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) },
+  });
 }));
 
 router.patch('/api/admin/members/:pmid/block', ...guard, asyncHandler(async (req, res) => {

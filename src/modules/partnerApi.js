@@ -921,11 +921,67 @@ router.get('/api/partner/products', ...guard, asyncHandler(async (req, res) => {
   await ensureCommerzaSchema();
   const pmid = Number(req.user.pmid);
   const statusFilter = req.query.status; // 'all' | 'approved' | 'pending' | 'rejected'
+  const search = String(req.query.search || '').trim();
+  const gmid = parseInt(req.query.gmid || 0, 10) || 0;
+  const catid = parseInt(req.query.catid || 0, 10) || 0;
+  const subcatid = parseInt(req.query.subcatid || 0, 10) || 0;
+  const mprid = parseInt(req.query.mprid || 0, 10) || 0;
+  const stockStatus = String(req.query.stockStatus || 'all').toLowerCase();
+  const createdFrom = String(req.query.createdFrom || '').trim();
+  const createdTo = String(req.query.createdTo || '').trim();
+
+  const page = Math.max(1, parseInt(req.query.page || 1, 10) || 1);
+  const limit = Math.min(200, Math.max(1, parseInt(req.query.limit || 25, 10) || 25));
+  const offset = (page - 1) * limit;
 
   let where = 'mp.companyid = @pmid';
   if (statusFilter === 'approved') where += ' AND COALESCE(sp.isverified, 0) = 1';
   else if (statusFilter === 'pending') where += ' AND COALESCE(sp.isverified, 0) = 0';
   else if (statusFilter === 'rejected') where += ' AND COALESCE(sp.isverified, 0) = 2';
+
+  if (mprid > 0) where += ' AND mp.mprid = @mprid';
+  if (gmid > 0) where += ' AND pc.gmid = @gmid';
+  if (catid > 0) where += ' AND mp.catid = @catid';
+  if (subcatid > 0) where += ' AND mp.subcategoryid = @subcatid';
+
+  if (stockStatus === 'in_stock') where += ' AND COALESCE(sp.stocknet, sp.qty, 0) > 0';
+  else if (stockStatus === 'low_stock') where += ' AND COALESCE(sp.stocknet, sp.qty, 0) > 0 AND COALESCE(sp.stocknet, sp.qty, 0) <= 10';
+  else if (stockStatus === 'out_of_stock') where += ' AND COALESCE(sp.stocknet, sp.qty, 0) <= 0';
+
+  if (createdFrom) where += ' AND mp.createddate::date >= @createdFrom::date';
+  if (createdTo) where += ' AND mp.createddate::date <= @createdTo::date';
+
+  if (search) {
+    where += ` AND (
+      mp.producttitle ILIKE @q OR sp.subprcode ILIKE @q OR mp.productcode ILIKE @q
+      OR sp.prskucode ILIKE @q OR sp.color ILIKE @q OR sp.size ILIKE @q
+      OR pc.catname ILIKE @q OR sc.scatname ILIKE @q
+    )`;
+  }
+
+  const params = {
+    pmid,
+    mprid,
+    gmid,
+    catid,
+    subcatid,
+    createdFrom: createdFrom || null,
+    createdTo: createdTo || null,
+    q: `%${search}%`,
+    limit,
+    offset,
+  };
+
+  const total = Number(await db.scalar(
+    DB,
+    `SELECT COUNT(*)::int
+     FROM ims_subproduct sp
+     JOIN ims_masterproduct mp ON mp.mprid = sp.mprid
+     LEFT JOIN product_category pc ON pc.catid = mp.catid
+     LEFT JOIN product_subcategory sc ON sc.scatid = mp.subcategoryid
+     WHERE ${where}`,
+    params
+  ) || 0);
 
   const products = await db.query(
     DB,
@@ -953,8 +1009,9 @@ router.get('/api/partner/products', ...guard, asyncHandler(async (req, res) => {
      LEFT JOIN product_subcategory sc ON sc.scatid = mp.subcategoryid
      LEFT JOIN commerza_product_meta pm_meta ON pm_meta.sprid = sp.sprid
      WHERE ${where}
-     ORDER BY mp.mprid DESC, sp.sprid DESC`,
-    { pmid }
+     ORDER BY mp.mprid DESC, sp.sprid DESC
+     LIMIT @limit OFFSET @offset`,
+    params
   );
 
   const sprids = products.map((p) => p.sprid);
@@ -981,7 +1038,16 @@ router.get('/api/partner/products', ...guard, asyncHandler(async (req, res) => {
     };
   });
 
-  res.json({ status: 'true', products: enriched });
+  res.json({
+    status: 'true',
+    products: enriched,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / limit)),
+    },
+  });
 }));
 
 async function insertVariantTx(t, { mprid, pmid, productCode, catid, subcatid, v, index }) {
@@ -1467,6 +1533,23 @@ router.post('/api/storefront/orders', asyncHandler(async (req, res) => {
 router.get('/api/partner/orders', ...guard, asyncHandler(async (req, res) => {
   await ensureCommerzaSchema();
   const pmid = Number(req.user.pmid);
+  const status = String(req.query.status || 'all').toLowerCase();
+  const deliveryMethod = String(req.query.deliveryMethod || 'all').toLowerCase();
+  const search = String(req.query.search || '').trim();
+  const page = Math.max(1, parseInt(req.query.page || 1, 10) || 1);
+  const limit = Math.min(200, Math.max(1, parseInt(req.query.limit || 25, 10) || 25));
+  const offset = (page - 1) * limit;
+
+  let where = 'o.pmid = @pmid';
+  if (status && status !== 'all') where += ' AND o.fulfillment_status = @status';
+  if (deliveryMethod && deliveryMethod !== 'all') where += ' AND o.delivery_method = @deliveryMethod';
+  if (search) {
+    where += ' AND (o.order_number ILIKE @q OR o.customer_name ILIKE @q OR o.customer_phone ILIKE @q OR o.delivery_pincode ILIKE @q OR o.assigned_delivery_name ILIKE @q)';
+  }
+
+  const params = { pmid, status, deliveryMethod, q: `%${search}%`, limit, offset };
+  const total = Number(await db.scalar(DB, `SELECT COUNT(*)::int FROM commerza_orders o WHERE ${where}`, params) || 0);
+
   const orders = await db.query(
     DB,
     `SELECT o.*, s.provider, s.awb_code, s.courier_name, s.status AS shipment_status, s.tracking_url,
@@ -1480,11 +1563,16 @@ router.get('/api/partner/orders', ...guard, asyncHandler(async (req, res) => {
      LEFT JOIN LATERAL (
        SELECT * FROM commerza_shipments sh WHERE sh.order_id = o.id ORDER BY sh.id DESC LIMIT 1
      ) s ON TRUE
-     WHERE o.pmid = @pmid
-     ORDER BY o.id DESC`,
-    { pmid }
+     WHERE ${where}
+     ORDER BY o.id DESC
+     LIMIT @limit OFFSET @offset`,
+    params
   );
-  res.json({ status: 'true', orders });
+  res.json({
+    status: 'true',
+    orders,
+    pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) },
+  });
 }));
 
 router.patch('/api/partner/orders/:id/assign-delivery', ...guard, requireApprovedSubscription, asyncHandler(async (req, res) => {
