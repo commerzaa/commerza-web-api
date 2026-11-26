@@ -9,11 +9,18 @@ const asyncHandler = require('../middleware/asyncHandler');
 const { Encryptword } = require('../utils/crypto');
 const { ensureCommerzaSchema } = require('../lib/commerzaSchema');
 const { createSession, rotateSession, revokeSession } = require('../lib/refreshTokens');
+const { parsePagination, buildPagination } = require('../lib/pagination');
+const { authLimiter, refreshLimiter, portalMethodLimiter } = require('../lib/rateLimiters');
+const {
+  checkText, checkEmail, checkPhone, checkPincode,
+  checkNumber, checkPassword, checkOptionalRegex, firstError,
+} = require('../lib/validators');
 const shiprocket = require('../lib/shiprocket');
 
 const router = express.Router();
 const DB = 'shopping';
 const guard = [auth, requireType('merchant')];
+router.use('/api/partner', portalMethodLimiter);
 
 async function getPartnerSubscriptionState(pmid) {
   await ensureCommerzaSchema();
@@ -76,15 +83,26 @@ function makeSafeFileName(prefix, ext = 'png') {
 }
 
 // ---- Auth: Register & Login ----------------------------------------------------------------
-router.post('/api/partner/register', asyncHandler(async (req, res) => {
+router.post('/api/partner/register', authLimiter, asyncHandler(async (req, res) => {
   await ensureCommerzaSchema();
   const {
     companyName, ownerName, email, phone, password,
     address = '', pincode = '', areaName = '', description = '', referralCode = '',
   } = req.body || {};
 
-  if (!companyName || !email || !phone || !password) {
-    return res.status(400).json({ status: 'false', message: 'companyName, email, phone, and password are required' });
+  const validationErr = firstError([
+    checkText(companyName, 'Company name', { required: true, min: 2, max: 120 }),
+    checkText(ownerName, 'Owner name', { required: false, max: 100 }),
+    checkEmail(email, { required: true, max: 120 }),
+    checkPhone(phone, { required: true }),
+    checkPassword(password, { required: true, min: 6, max: 64 }),
+    checkPincode(pincode, { required: false }),
+    checkText(address, 'Address', { required: false, max: 300 }),
+    checkText(areaName, 'Area name', { required: false, max: 120 }),
+    checkText(description, 'Description', { required: false, max: 500 }),
+  ]);
+  if (validationErr) {
+    return res.status(400).json({ status: 'false', message: validationErr });
   }
 
   const existing = await db.queryOne(
@@ -202,7 +220,7 @@ router.post('/api/partner/register', asyncHandler(async (req, res) => {
   });
 }));
 
-router.post('/api/partner/login', asyncHandler(async (req, res) => {
+router.post('/api/partner/login', authLimiter, asyncHandler(async (req, res) => {
   await ensureCommerzaSchema();
   const { email, loginId, password } = req.body || {};
   const identifier = String(email || loginId || '').trim();
@@ -290,7 +308,7 @@ router.post('/api/partner/login', asyncHandler(async (req, res) => {
   });
 }));
 
-router.post('/api/partner/refresh', asyncHandler(async (req, res) => {
+router.post('/api/partner/refresh', refreshLimiter, asyncHandler(async (req, res) => {
   const rawToken = (req.body && (req.body.refreshToken || req.body.RefreshToken)) || '';
   const result = await rotateSession(rawToken, 'merchant', async (t, row) => {
     const p = typeof row.payload_json === 'string' ? JSON.parse(row.payload_json) : (row.payload_json || {});
@@ -483,17 +501,22 @@ router.post('/api/partner/packages/purchase-from-wallet', ...guard, asyncHandler
 
 router.get('/api/partner/subscription', ...guard, asyncHandler(async (req, res) => {
   const pmid = Number(req.user.pmid);
-  const state = await getPartnerSubscriptionState(pmid);
-  const history = await db.query(
-    DB,
-    `SELECT s.*, pkg.code AS package_code, pkg.max_products
-     FROM commerza_partner_subscriptions s
-     LEFT JOIN commerza_packages pkg ON pkg.id = s.package_id
-     WHERE s.pmid = @pmid
-     ORDER BY s.id DESC`,
-    { pmid }
-  );
-  res.json({ status: 'true', ...state, history });
+  const { page, limit, offset } = parsePagination(req.query, 25, 200);
+  const [state, total, history] = await Promise.all([
+    getPartnerSubscriptionState(pmid),
+    db.scalar(DB, 'SELECT COUNT(*)::int FROM commerza_partner_subscriptions WHERE pmid = @pmid', { pmid }),
+    db.query(
+      DB,
+      `SELECT s.*, pkg.code AS package_code, pkg.max_products
+       FROM commerza_partner_subscriptions s
+       LEFT JOIN commerza_packages pkg ON pkg.id = s.package_id
+       WHERE s.pmid = @pmid
+       ORDER BY s.id DESC
+       LIMIT @limit OFFSET @offset`,
+      { pmid, limit, offset }
+    ),
+  ]);
+  res.json({ status: 'true', ...state, history, historyPagination: buildPagination(page, limit, total) });
 }));
 
 router.get('/api/partner/stats', ...guard, asyncHandler(async (req, res) => {
@@ -658,6 +681,21 @@ router.put('/api/partner/profile', ...guard, asyncHandler(async (req, res) => {
   const pmid = Number(req.user.pmid);
   const b = req.body || {};
 
+  const validationErr = firstError([
+    checkText(b.companyName, 'Company name', { required: false, min: 2, max: 120 }),
+    checkPhone(b.mobileno, { required: false }),
+    checkEmail(b.comemailid, { required: false, max: 120 }),
+    checkPincode(b.pincode, { required: false }),
+    checkOptionalRegex(b.gst_number, 'GSTIN', /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/, '15 chars e.g. 22AAAAA0000A1Z5'),
+    checkOptionalRegex(b.pan_number, 'PAN', /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/, '10 chars e.g. ABCDE1234F'),
+    checkOptionalRegex(b.bank_ifsc, 'IFSC', /^[A-Z]{4}0[A-Z0-9]{6}$/, '11 chars e.g. HDFC0001234'),
+    checkNumber(b.latitude, 'Latitude', { required: false, min: -90, max: 90 }),
+    checkNumber(b.longitude, 'Longitude', { required: false, min: -180, max: 180 }),
+  ]);
+  if (validationErr) {
+    return res.status(400).json({ status: 'false', message: validationErr });
+  }
+
   await db.tx(DB, async (t) => {
     await t.query(
       `UPDATE portal_master
@@ -769,6 +807,19 @@ router.put('/api/partner/delivery-settings', ...guard, requireApprovedSubscripti
   await ensureCommerzaSchema();
   const pmid = Number(req.user.pmid);
   const b = req.body || {};
+  const validationErr = firstError([
+    checkNumber(b.local_radius_km, 'Local radius (km)', { required: false, min: 0.5, max: 200 }),
+    checkNumber(b.local_fee, 'Local delivery fee', { required: false, min: 0, max: 10000 }),
+    checkNumber(b.default_weight_kg, 'Default weight (kg)', { required: false, min: 0.05, max: 500 }),
+    checkNumber(b.default_length_cm, 'Length (cm)', { required: false, min: 1, max: 500 }),
+    checkNumber(b.default_breadth_cm, 'Breadth (cm)', { required: false, min: 1, max: 500 }),
+    checkNumber(b.default_height_cm, 'Height (cm)', { required: false, min: 1, max: 500 }),
+    checkText(b.local_pincodes, 'Serviceable pincodes', { required: false, max: 500 }),
+    checkText(b.local_eta_text, 'Estimated delivery time', { required: false, max: 80 }),
+  ]);
+  if (validationErr) {
+    return res.status(400).json({ status: 'false', message: validationErr });
+  }
   await db.query(
     DB,
     `INSERT INTO commerza_shop_delivery_settings (
@@ -1811,16 +1862,42 @@ router.post('/api/partner/orders/:id/shiprocket', ...guard, requireApprovedSubsc
 router.get('/api/partner/coupons', ...guard, asyncHandler(async (req, res) => {
   await ensureCommerzaSchema();
   const pmid = Number(req.user.pmid);
-  const coupons = await db.query(
-    DB,
-    `SELECT c.*, mp.producttitle
-     FROM commerza_coupons c
-     LEFT JOIN ims_masterproduct mp ON mp.mprid = c.mprid
-     WHERE c.pmid = @pmid
-     ORDER BY c.id DESC`,
-    { pmid }
-  );
-  res.json({ status: 'true', coupons });
+  const { page, limit, offset } = parsePagination(req.query, 25, 200);
+  const search = String(req.query.search || '').trim();
+  const isActiveParam = String(req.query.isActive || '').trim().toLowerCase();
+
+  let where = 'c.pmid = @pmid';
+  const params = { pmid, limit, offset };
+  if (search) {
+    where += ' AND (c.code ILIKE @q OR c.title ILIKE @q OR COALESCE(mp.producttitle, \'\') ILIKE @q)';
+    params.q = `%${search}%`;
+  }
+  if (isActiveParam === 'true' || isActiveParam === 'false') {
+    where += ' AND c.is_active = @isActive';
+    params.isActive = isActiveParam === 'true';
+  }
+
+  const [total, coupons] = await Promise.all([
+    db.scalar(
+      DB,
+      `SELECT COUNT(*)::int
+       FROM commerza_coupons c
+       LEFT JOIN ims_masterproduct mp ON mp.mprid = c.mprid
+       WHERE ${where}`,
+      params
+    ),
+    db.query(
+      DB,
+      `SELECT c.*, mp.producttitle
+       FROM commerza_coupons c
+       LEFT JOIN ims_masterproduct mp ON mp.mprid = c.mprid
+       WHERE ${where}
+       ORDER BY c.id DESC
+       LIMIT @limit OFFSET @offset`,
+      params
+    ),
+  ]);
+  res.json({ status: 'true', coupons, pagination: buildPagination(page, limit, total) });
 }));
 
 router.post('/api/partner/coupons', ...guard, requireApprovedSubscription, asyncHandler(async (req, res) => {
@@ -1828,8 +1905,16 @@ router.post('/api/partner/coupons', ...guard, requireApprovedSubscription, async
   const pmid = Number(req.user.pmid);
   const b = req.body || {};
   const code = String(b.code || '').trim().toUpperCase();
-  if (!code || b.discountValue === undefined) {
-    return res.status(400).json({ status: 'false', message: 'code and discountValue are required' });
+  const validationErr = firstError([
+    checkText(code, 'Coupon code', { required: true, min: 3, max: 32 }),
+    checkText(b.title, 'Coupon title', { required: false, max: 100 }),
+    checkNumber(b.discountValue, 'Discount value', { required: true, min: 0.01, max: b.discountType === 'fixed' ? 100000 : 100 }),
+    checkNumber(b.minOrderAmount ?? 0, 'Min order amount', { required: false, min: 0, max: 1000000 }),
+    checkNumber(b.maxDiscount ?? 0, 'Max discount', { required: false, min: 0, max: 100000 }),
+    checkNumber(b.usageLimit ?? 100, 'Usage limit', { required: false, min: 1, max: 1000000 }),
+  ]);
+  if (validationErr) {
+    return res.status(400).json({ status: 'false', message: validationErr });
   }
   const row = await db.queryOne(
     DB,
@@ -1876,31 +1961,44 @@ router.delete('/api/partner/coupons/:id', ...guard, asyncHandler(async (req, res
 router.get('/api/partner/users', ...guard, asyncHandler(async (req, res) => {
   await ensureCommerzaSchema();
   const pmid = Number(req.user.pmid);
+  const { page, limit, offset } = parsePagination(req.query, 25, 200);
   const typeFilter = String(req.query.type || 'all').toLowerCase();
+  const search = String(req.query.search || '').trim();
+
   let where = 'u.pmid = @pmid';
+  const params = { pmid, limit, offset };
   if (typeFilter === 'delivery_boy') {
     where += " AND (u.user_type = 'delivery_boy' OR u.role = 'delivery_boy')";
   } else if (typeFilter === 'staff') {
     where += " AND u.user_type != 'delivery_boy' AND u.role != 'delivery_boy'";
   }
-  const users = await db.query(
-    DB,
-    `SELECT u.id, u.pmid, u.full_name, u.email, u.phone, u.role, u.user_type,
-            u.vehicle_type, u.vehicle_number, u.license_number, u.is_available,
-            u.is_active, u.created_at,
-            COALESCE(ord.active_orders, 0)::int AS active_orders
-     FROM commerza_portal_users u
-     LEFT JOIN LATERAL (
-       SELECT COUNT(*)::int AS active_orders
-       FROM commerza_orders o
-       WHERE o.assigned_delivery_user_id = u.id
-         AND o.fulfillment_status IN ('accepted', 'preparing', 'out_for_delivery')
-     ) ord ON TRUE
-     WHERE ${where}
-     ORDER BY u.id DESC`,
-    { pmid }
-  );
-  res.json({ status: 'true', users });
+  if (search) {
+    where += ' AND (u.full_name ILIKE @q OR u.email ILIKE @q OR u.phone ILIKE @q OR COALESCE(u.vehicle_number, \'\') ILIKE @q)';
+    params.q = `%${search}%`;
+  }
+
+  const [total, users] = await Promise.all([
+    db.scalar(DB, `SELECT COUNT(*)::int FROM commerza_portal_users u WHERE ${where}`, params),
+    db.query(
+      DB,
+      `SELECT u.id, u.pmid, u.full_name, u.email, u.phone, u.role, u.user_type,
+              u.vehicle_type, u.vehicle_number, u.license_number, u.is_available,
+              u.is_active, u.created_at,
+              COALESCE(ord.active_orders, 0)::int AS active_orders
+       FROM commerza_portal_users u
+       LEFT JOIN LATERAL (
+         SELECT COUNT(*)::int AS active_orders
+         FROM commerza_orders o
+         WHERE o.assigned_delivery_user_id = u.id
+           AND o.fulfillment_status IN ('accepted', 'preparing', 'out_for_delivery')
+       ) ord ON TRUE
+       WHERE ${where}
+       ORDER BY u.id DESC
+       LIMIT @limit OFFSET @offset`,
+      params
+    ),
+  ]);
+  res.json({ status: 'true', users, pagination: buildPagination(page, limit, total) });
 }));
 
 router.post('/api/partner/users', ...guard, asyncHandler(async (req, res) => {
@@ -2002,24 +2100,47 @@ router.get('/api/partner/referrals', ...guard, asyncHandler(async (req, res) => 
     await db.exec(DB, 'UPDATE portal_login SET referalcode = @rc WHERE pmid = @pmid', { rc: referralCode, pmid });
   }
 
-  const referrals = await db.query(
-    DB,
-    `SELECT pm.pmid, pm.companyname, pm.comemailid, pm.mobileno, pm.isverified, pm.doc AS joined_at,
-            COALESCE(NULLIF(pl.referalcode, ''), 'CMZ-P' || pm.pmid::text) AS username,
-            CASE WHEN pl.communityside = 2 THEN 'Right' ELSE 'Left' END AS side,
-            sub.package_name, sub.amount_paid, sub.status AS subscription_status
-     FROM portal_login pl
-     JOIN portal_master pm ON pm.pmid = pl.pmid
-     LEFT JOIN LATERAL (
-       SELECT package_name, amount_paid, status
-       FROM commerza_partner_subscriptions s
-       WHERE s.pmid = pm.pmid
-       ORDER BY s.id DESC LIMIT 1
-     ) sub ON TRUE
-     WHERE pl.intro_plid = @plid OR (pl.refral_id IS NOT NULL AND upper(pl.refral_id) = upper(@rc))
-     ORDER BY pm.pmid DESC`,
-    { plid: me?.plid || plid, rc: referralCode }
-  );
+  const { page, limit, offset } = parsePagination(req.query, 25, 200);
+  const refSearch = String(req.query.search || '').trim();
+  const refSide = String(req.query.side || '').trim().toLowerCase();
+  let refWhere = '(pl.intro_plid = @plid OR (pl.refral_id IS NOT NULL AND upper(pl.refral_id) = upper(@rc)))';
+  const refParams = { plid: me?.plid || plid, rc: referralCode, limit, offset };
+  if (refSearch) {
+    refWhere += " AND (pm.companyname ILIKE @q OR pm.mobileno ILIKE @q OR COALESCE(pm.comemailid, '') ILIKE @q OR COALESCE(pl.referalcode, '') ILIKE @q OR ('CMZ-P' || pm.pmid::text) ILIKE @q)";
+    refParams.q = `%${refSearch}%`;
+  }
+  if (refSide === 'left') refWhere += ' AND COALESCE(pl.communityside, 1) != 2';
+  else if (refSide === 'right') refWhere += ' AND pl.communityside = 2';
+
+  const [refTotal, referrals] = await Promise.all([
+    db.scalar(
+      DB,
+      `SELECT COUNT(*)::int
+       FROM portal_login pl
+       JOIN portal_master pm ON pm.pmid = pl.pmid
+       WHERE ${refWhere}`,
+      refParams
+    ),
+    db.query(
+      DB,
+      `SELECT pm.pmid, pm.companyname, pm.comemailid, pm.mobileno, pm.isverified, pm.doc AS joined_at,
+              COALESCE(NULLIF(pl.referalcode, ''), 'CMZ-P' || pm.pmid::text) AS username,
+              CASE WHEN pl.communityside = 2 THEN 'Right' ELSE 'Left' END AS side,
+              sub.package_name, sub.amount_paid, sub.status AS subscription_status
+       FROM portal_login pl
+       JOIN portal_master pm ON pm.pmid = pl.pmid
+       LEFT JOIN LATERAL (
+         SELECT package_name, amount_paid, status
+         FROM commerza_partner_subscriptions s
+         WHERE s.pmid = pm.pmid
+         ORDER BY s.id DESC LIMIT 1
+       ) sub ON TRUE
+       WHERE ${refWhere}
+       ORDER BY pm.pmid DESC
+       LIMIT @limit OFFSET @offset`,
+      refParams
+    ),
+  ]);
 
   const rootPlid = Number(me?.plid || plid);
   const treeNodes = await db.query(
@@ -2091,6 +2212,7 @@ router.get('/api/partner/referrals', ...guard, asyncHandler(async (req, res) => 
       rightBv,
     },
     referrals,
+    referralsPagination: buildPagination(page, limit, refTotal),
     binaryTree: {
       rootPlid,
       nodes: treeNodes,
@@ -2101,12 +2223,26 @@ router.get('/api/partner/referrals', ...guard, asyncHandler(async (req, res) => 
 router.get('/api/partner/wallet', ...guard, asyncHandler(async (req, res) => {
   await ensureCommerzaSchema();
   const pmid = Number(req.user.pmid);
+  const txPg = parsePagination({ page: req.query.txPage || req.query.page, limit: req.query.txLimit || req.query.limit }, 20, 200);
+  const wdPg = parsePagination({ page: req.query.wdPage, limit: req.query.wdLimit }, 15, 200);
+  const tpPg = parsePagination({ page: req.query.topupPage, limit: req.query.topupLimit }, 15, 200);
+  const walletType = String(req.query.walletType || '').trim().toLowerCase();
 
-  const [balances, transactions, withdrawals, topupRequests, loginRow] = await Promise.all([
+  let txWhere = 'pmid = @pmid';
+  const txParams = { pmid, limit: txPg.limit, offset: txPg.offset };
+  if (walletType === 'topup' || walletType === 'income') {
+    txWhere += ' AND wallet_type = @walletType';
+    txParams.walletType = walletType;
+  }
+
+  const [balances, txTotal, transactions, wdTotal, withdrawals, tpTotal, topupRequests, loginRow] = await Promise.all([
     getWalletBalances(pmid),
-    db.query(DB, 'SELECT * FROM commerza_partner_wallet_tx WHERE pmid = @pmid ORDER BY id DESC LIMIT 50', { pmid }),
-    db.query(DB, 'SELECT * FROM commerza_partner_withdrawals WHERE pmid = @pmid ORDER BY id DESC LIMIT 50', { pmid }),
-    db.query(DB, 'SELECT * FROM commerza_partner_topup_requests WHERE pmid = @pmid ORDER BY id DESC LIMIT 50', { pmid }),
+    db.scalar(DB, `SELECT COUNT(*)::int FROM commerza_partner_wallet_tx WHERE ${txWhere}`, txParams),
+    db.query(DB, `SELECT * FROM commerza_partner_wallet_tx WHERE ${txWhere} ORDER BY id DESC LIMIT @limit OFFSET @offset`, txParams),
+    db.scalar(DB, 'SELECT COUNT(*)::int FROM commerza_partner_withdrawals WHERE pmid = @pmid', { pmid }),
+    db.query(DB, 'SELECT * FROM commerza_partner_withdrawals WHERE pmid = @pmid ORDER BY id DESC LIMIT @limit OFFSET @offset', { pmid, limit: wdPg.limit, offset: wdPg.offset }),
+    db.scalar(DB, 'SELECT COUNT(*)::int FROM commerza_partner_topup_requests WHERE pmid = @pmid', { pmid }),
+    db.query(DB, 'SELECT * FROM commerza_partner_topup_requests WHERE pmid = @pmid ORDER BY id DESC LIMIT @limit OFFSET @offset', { pmid, limit: tpPg.limit, offset: tpPg.offset }),
     db.queryOne(DB, 'SELECT referalcode FROM portal_login WHERE pmid = @pmid ORDER BY plid ASC LIMIT 1', { pmid }),
   ]);
 
@@ -2115,8 +2251,11 @@ router.get('/api/partner/wallet', ...guard, asyncHandler(async (req, res) => {
     uniqueId: loginRow?.referalcode || `CMZ-P${pmid}`,
     wallet: balances,
     transactions,
+    txPagination: buildPagination(txPg.page, txPg.limit, txTotal),
     withdrawals,
+    withdrawalsPagination: buildPagination(wdPg.page, wdPg.limit, wdTotal),
     topupRequests,
+    topupPagination: buildPagination(tpPg.page, tpPg.limit, tpTotal),
   });
 }));
 
@@ -2156,8 +2295,13 @@ router.post('/api/partner/wallet/transfer', ...guard, asyncHandler(async (req, r
   const uid = String(recipientUniqueId || '').trim();
   const amt = Number(amount);
 
-  if (!uid || !amt || amt <= 0) {
-    return res.status(400).json({ status: 'false', message: 'Valid recipientUniqueId and positive amount are required' });
+  const validationErr = firstError([
+    checkText(uid, 'Recipient Unique ID', { required: true, min: 3, max: 50 }),
+    checkNumber(amt, 'Transfer amount', { required: true, min: 1, max: 1000000 }),
+    checkText(note, 'Transfer note', { required: false, max: 200 }),
+  ]);
+  if (validationErr) {
+    return res.status(400).json({ status: 'false', message: validationErr });
   }
 
   const recipient = await db.queryOne(
@@ -2239,8 +2383,13 @@ router.post('/api/partner/wallet/topup', ...guard, asyncHandler(async (req, res)
   const { amount, paymentMethod = 'upi', transactionRef = '', paymentProofUrl = '', notes = '' } = req.body || {};
   const amt = Number(amount);
 
-  if (!amt || amt <= 0 || !String(transactionRef).trim()) {
-    return res.status(400).json({ status: 'false', message: 'Valid amount and transactionRef (UTR) are required' });
+  const validationErr = firstError([
+    checkNumber(amt, 'Top-up amount', { required: true, min: 1, max: 1000000 }),
+    checkText(transactionRef, 'Transaction reference (UTR)', { required: true, min: 4, max: 80 }),
+    checkText(notes, 'Notes', { required: false, max: 250 }),
+  ]);
+  if (validationErr) {
+    return res.status(400).json({ status: 'false', message: validationErr });
   }
 
   const row = await db.queryOne(
@@ -2270,8 +2419,12 @@ router.post('/api/partner/withdrawals', ...guard, asyncHandler(async (req, res) 
   const { amount, payoutMethod = 'upi', accountDetails = '' } = req.body || {};
   const amt = Number(amount);
 
-  if (!amt || amt <= 0 || !String(accountDetails).trim()) {
-    return res.status(400).json({ status: 'false', message: 'Valid amount and account/UPI details are required' });
+  const validationErr = firstError([
+    checkNumber(amt, 'Withdrawal amount', { required: true, min: 1, max: 1000000 }),
+    checkText(accountDetails, 'Account / UPI details', { required: true, min: 4, max: 200 }),
+  ]);
+  if (validationErr) {
+    return res.status(400).json({ status: 'false', message: validationErr });
   }
 
   const balances = await getWalletBalances(pmid);

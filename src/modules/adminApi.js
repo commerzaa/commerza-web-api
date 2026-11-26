@@ -6,13 +6,20 @@ const asyncHandler = require('../middleware/asyncHandler');
 const { Encryptword } = require('../utils/crypto');
 const { ensureCommerzaSchema } = require('../lib/commerzaSchema');
 const { createSession, rotateSession, revokeSession } = require('../lib/refreshTokens');
+const { parsePagination, buildPagination } = require('../lib/pagination');
+const { authLimiter, refreshLimiter, portalMethodLimiter } = require('../lib/rateLimiters');
+const {
+  checkText, checkEmail, checkPhone, checkPincode,
+  checkNumber, checkPassword, checkOptionalRegex, firstError,
+} = require('../lib/validators');
 
 const router = express.Router();
 const DB = 'shopping';
 const guard = [auth, requireType('admin')];
+router.use('/api/admin', portalMethodLimiter);
 
 // ---- Admin Login ---------------------------------------------------------------------------
-router.post('/api/admin/login', asyncHandler(async (req, res) => {
+router.post('/api/admin/login', authLimiter, asyncHandler(async (req, res) => {
   await ensureCommerzaSchema();
   const { email, password } = req.body || {};
   const adminEmail = process.env.ADMIN_EMAIL || 'admin@commerzaa.com';
@@ -71,7 +78,7 @@ router.post('/api/admin/login', asyncHandler(async (req, res) => {
   });
 }));
 
-router.post('/api/admin/refresh', asyncHandler(async (req, res) => {
+router.post('/api/admin/refresh', refreshLimiter, asyncHandler(async (req, res) => {
   const rawToken = (req.body && (req.body.refreshToken || req.body.RefreshToken)) || '';
   const result = await rotateSession(rawToken, 'admin');
   if (result.error) {
@@ -178,10 +185,17 @@ router.get('/api/admin/stats', ...guard, asyncHandler(async (_req, res) => {
 }));
 
 // ---- Package Plans & Payment Verification --------------------------------------------------
-router.get('/api/admin/packages', ...guard, asyncHandler(async (_req, res) => {
+router.get('/api/admin/packages', ...guard, asyncHandler(async (req, res) => {
   await ensureCommerzaSchema();
-  const packages = await db.query(DB, 'SELECT * FROM commerza_packages ORDER BY sort_order ASC, id ASC');
-  res.json({ status: 'true', packages });
+  const { page, limit, offset } = parsePagination(req.query, 25, 200);
+  const search = String(req.query.search || '').trim();
+  const where = search ? 'WHERE (name ILIKE @q OR code ILIKE @q OR package_type ILIKE @q)' : '';
+  const params = search ? { q: `%${search}%`, limit, offset } : { limit, offset };
+  const [total, packages] = await Promise.all([
+    db.scalar(DB, `SELECT COUNT(*)::int FROM commerza_packages ${where}`, params),
+    db.query(DB, `SELECT * FROM commerza_packages ${where} ORDER BY sort_order ASC, id ASC LIMIT @limit OFFSET @offset`, params),
+  ]);
+  res.json({ status: 'true', packages, pagination: buildPagination(page, limit, total) });
 }));
 
 router.post('/api/admin/packages', ...guard, asyncHandler(async (req, res) => {
@@ -191,8 +205,16 @@ router.post('/api/admin/packages', ...guard, asyncHandler(async (req, res) => {
     packageType = 'Seller', durationDays = 365, maxProducts = 25,
     localDeliveryAllowed = true, shiprocketAllowed = true, features = [], isActive = true,
   } = req.body || {};
-  if (!code || !name || price === undefined) {
-    return res.status(400).json({ status: 'false', message: 'code, name, and price are required' });
+  const validationErr = firstError([
+    checkText(code, 'Package code', { required: true, min: 2, max: 40 }),
+    checkText(name, 'Package name', { required: true, min: 2, max: 120 }),
+    checkNumber(price, 'Package price', { required: true, min: 0, max: 10000000 }),
+    checkNumber(durationDays, 'Duration (days)', { required: false, min: 1, max: 3650 }),
+    checkNumber(maxProducts, 'Max products', { required: false, min: 1, max: 100000 }),
+    checkText(description, 'Description', { required: false, max: 500 }),
+  ]);
+  if (validationErr) {
+    return res.status(400).json({ status: 'false', message: validationErr });
   }
   const mrp = Number(price);
   const row = await db.queryOne(
@@ -328,23 +350,43 @@ router.put('/api/admin/master-settings/:section', ...guard, asyncHandler(async (
 
 router.get('/api/admin/subscriptions', ...guard, asyncHandler(async (req, res) => {
   await ensureCommerzaSchema();
-  const statusFilter = req.query.status || 'all';
-  let where = '1=1';
-  if (['pending', 'approved', 'rejected'].includes(String(statusFilter))) {
-    where = 's.status = @statusFilter';
+  const { page, limit, offset } = parsePagination(req.query, 25, 200);
+  const statusFilter = String(req.query.status || 'all').trim().toLowerCase();
+  const search = String(req.query.search || '').trim();
+  const conds = ['1=1'];
+  const params = { limit, offset };
+  if (['pending', 'approved', 'rejected'].includes(statusFilter)) {
+    conds.push('s.status = @statusFilter');
+    params.statusFilter = statusFilter;
   }
-  const subscriptions = await db.query(
-    DB,
-    `SELECT s.*, pm.companyname, pm.comemailid, pm.mobileno, pm.isverified AS shop_verified,
-            pkg.code AS package_code, pkg.max_products, pkg.duration_days
-     FROM commerza_partner_subscriptions s
-     LEFT JOIN portal_master pm ON pm.pmid = s.pmid
-     LEFT JOIN commerza_packages pkg ON pkg.id = s.package_id
-     WHERE ${where}
-     ORDER BY s.id DESC`,
-    { statusFilter }
-  );
-  res.json({ status: 'true', subscriptions });
+  if (search) {
+    conds.push('(pm.companyname ILIKE @q OR pm.comemailid ILIKE @q OR pm.mobileno ILIKE @q OR s.package_name ILIKE @q OR COALESCE(s.transaction_ref, \'\') ILIKE @q)');
+    params.q = `%${search}%`;
+  }
+  const where = conds.join(' AND ');
+  const [total, subscriptions] = await Promise.all([
+    db.scalar(
+      DB,
+      `SELECT COUNT(*)::int
+       FROM commerza_partner_subscriptions s
+       LEFT JOIN portal_master pm ON pm.pmid = s.pmid
+       WHERE ${where}`,
+      params
+    ),
+    db.query(
+      DB,
+      `SELECT s.*, pm.companyname, pm.comemailid, pm.mobileno, pm.isverified AS shop_verified,
+              pkg.code AS package_code, pkg.max_products, pkg.duration_days
+       FROM commerza_partner_subscriptions s
+       LEFT JOIN portal_master pm ON pm.pmid = s.pmid
+       LEFT JOIN commerza_packages pkg ON pkg.id = s.package_id
+       WHERE ${where}
+       ORDER BY s.id DESC
+       LIMIT @limit OFFSET @offset`,
+      params
+    ),
+  ]);
+  res.json({ status: 'true', subscriptions, pagination: buildPagination(page, limit, total) });
 }));
 
 router.patch('/api/admin/subscriptions/:id/review', ...guard, asyncHandler(async (req, res) => {
@@ -437,38 +479,61 @@ router.patch('/api/admin/subscriptions/:id/review', ...guard, asyncHandler(async
 // ---- Shop Verification ---------------------------------------------------------------------
 router.get('/api/admin/shops', ...guard, asyncHandler(async (req, res) => {
   await ensureCommerzaSchema();
-  const statusFilter = req.query.status; // 'all' | 'pending' | 'verified' | 'rejected'
-  let where = '1=1';
-  if (statusFilter === 'pending') where = 'COALESCE(pm.isverified, 0) = 0';
-  else if (statusFilter === 'verified') where = 'COALESCE(pm.isverified, 0) = 1';
-  else if (statusFilter === 'rejected') where = 'COALESCE(pm.isverified, 0) = 2';
+  const { page, limit, offset } = parsePagination(req.query, 25, 200);
+  const statusFilter = String(req.query.status || 'all').trim().toLowerCase(); // 'all' | 'pending' | 'verified' | 'rejected'
+  const search = String(req.query.search || '').trim();
+  const conds = ['1=1'];
+  const params = { limit, offset };
+  if (statusFilter === 'pending') conds.push('COALESCE(pm.isverified, 0) = 0');
+  else if (statusFilter === 'verified') conds.push('COALESCE(pm.isverified, 0) = 1');
+  else if (statusFilter === 'rejected') conds.push('COALESCE(pm.isverified, 0) = 2');
+  else if (statusFilter === 'active') conds.push('COALESCE(pm.active, true) = true');
+  else if (statusFilter === 'suspended') conds.push('COALESCE(pm.active, true) = false');
+  if (search) {
+    conds.push('(pm.companyname ILIKE @q OR pm.mobileno ILIKE @q OR pm.comemailid ILIKE @q OR COALESCE(pm.pincode, \'\') ILIKE @q OR COALESCE(pm.areaname, \'\') ILIKE @q OR COALESCE(sd.city, \'\') ILIKE @q)');
+    params.q = `%${search}%`;
+  }
+  const where = conds.join(' AND ');
 
-  const shops = await db.query(
-    DB,
-    `SELECT pm.pmid, pm.companyname, pm.mobileno, pm.comemailid, pm.address, pm.pincode,
-            pm.areaname, pm.active, pm.isverified, pm.doc,
-            ds.local_delivery_enabled, ds.local_pincodes, ds.local_radius_km, ds.local_fee,
-            ds.local_eta_text, ds.shiprocket_enabled, ds.delivery_verified,
-            sd.latitude, sd.longitude, sd.map_address, sd.city, sd.state, sd.landmark,
-            sd.shop_category, sd.gst_number, sd.pan_number, sd.fssai_or_license,
-            sd.bank_account_name, sd.bank_account_number, sd.bank_ifsc, sd.upi_id,
-            sd.opening_time, sd.closing_time, sd.working_days,
-            sd.shop_logo_url, sd.shop_banner_url, sd.is_profile_completed,
-            sub.status AS subscription_status, sub.package_name AS subscription_package,
-            sub.amount_paid AS subscription_amount_paid, sub.transaction_ref AS subscription_ref
-     FROM portal_master pm
-     LEFT JOIN commerza_shop_delivery_settings ds ON ds.pmid = pm.pmid
-     LEFT JOIN commerza_shop_details sd ON sd.pmid = pm.pmid
-     LEFT JOIN LATERAL (
-       SELECT status, package_name, amount_paid, transaction_ref
-       FROM commerza_partner_subscriptions s
-       WHERE s.pmid = pm.pmid
-       ORDER BY s.id DESC LIMIT 1
-     ) sub ON TRUE
-     WHERE ${where}
-     ORDER BY pm.pmid DESC`
-  );
-  res.json({ status: 'true', shops });
+  const [total, shops] = await Promise.all([
+    db.scalar(
+      DB,
+      `SELECT COUNT(*)::int
+       FROM portal_master pm
+       LEFT JOIN commerza_shop_details sd ON sd.pmid = pm.pmid
+       WHERE ${where}`,
+      params
+    ),
+    db.query(
+      DB,
+      `SELECT pm.pmid, pm.companyname, pm.mobileno, pm.comemailid, pm.address, pm.pincode,
+              pm.areaname, pm.active, pm.isverified, pm.doc,
+              ds.local_delivery_enabled, ds.local_pincodes, ds.local_radius_km, ds.local_fee,
+              ds.local_eta_text, ds.shiprocket_enabled, ds.delivery_verified,
+              sd.latitude, sd.longitude, sd.map_address, sd.city, sd.state, sd.landmark,
+              sd.shop_category, sd.gst_number, sd.pan_number, sd.fssai_or_license,
+              sd.bank_account_name, sd.bank_account_number, sd.bank_ifsc, sd.upi_id,
+              sd.opening_time, sd.closing_time, sd.working_days,
+              sd.shop_logo_url, sd.shop_banner_url, sd.is_profile_completed,
+              sub.status AS subscription_status, sub.package_name AS subscription_package,
+              sub.amount_paid AS subscription_amount_paid, sub.transaction_ref AS subscription_ref,
+              sub.expires_at AS subscription_expires_at
+       FROM portal_master pm
+       LEFT JOIN commerza_shop_delivery_settings ds ON ds.pmid = pm.pmid
+       LEFT JOIN commerza_shop_details sd ON sd.pmid = pm.pmid
+       LEFT JOIN LATERAL (
+         SELECT status, package_name, amount_paid, transaction_ref, expires_at
+         FROM commerza_partner_subscriptions s
+         WHERE s.pmid = pm.pmid
+         ORDER BY s.id DESC LIMIT 1
+       ) sub ON TRUE
+       WHERE ${where}
+       ORDER BY pm.pmid DESC
+       LIMIT @limit OFFSET @offset`,
+      params
+    ),
+  ]);
+  res.json({ status: 'true', shops, pagination: buildPagination(page, limit, total) });
 }));
 
 router.patch('/api/admin/shops/:pmid/verify', ...guard, asyncHandler(async (req, res) => {
@@ -617,6 +682,19 @@ router.put('/api/admin/shops/:pmid', ...guard, asyncHandler(async (req, res) => 
   const pmid = parseInt(req.params.pmid, 10);
   const b = req.body || {};
 
+  const validationErr = firstError([
+    checkText(b.companyname, 'Shop name', { required: false, min: 2, max: 120 }),
+    checkPhone(b.mobileno, { required: false }),
+    checkEmail(b.comemailid, { required: false, max: 120 }),
+    checkPincode(b.pincode, { required: false }),
+    checkOptionalRegex(b.gst_number, 'GSTIN', /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/, '15 chars'),
+    checkOptionalRegex(b.pan_number, 'PAN', /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/, '10 chars'),
+    checkOptionalRegex(b.bank_ifsc, 'IFSC', /^[A-Z]{4}0[A-Z0-9]{6}$/, '11 chars'),
+  ]);
+  if (validationErr) {
+    return res.status(400).json({ status: 'false', message: validationErr });
+  }
+
   await db.tx(DB, async (t) => {
     await t.query(
       `UPDATE portal_master
@@ -693,28 +771,91 @@ router.put('/api/admin/shops/:pmid', ...guard, asyncHandler(async (req, res) => 
 }));
 
 // ---- Group Categories, Categories & Subcategories ------------------------------------------
-router.get('/api/admin/categories', ...guard, asyncHandler(async (_req, res) => {
+router.get('/api/admin/categories', ...guard, asyncHandler(async (req, res) => {
   await ensureCommerzaSchema();
-  const [groups, categories, subcategories] = await Promise.all([
-    db.query(DB, 'SELECT gmid, groupname, COALESCE(status, 1) AS status FROM tbl_categorygroupmaster ORDER BY gmid ASC'),
+  const paginate = String(req.query.paginate || '') === 'true';
+  if (!paginate) {
+    const [groups, categories, subcategories] = await Promise.all([
+      db.query(DB, 'SELECT gmid, groupname, COALESCE(status, 1) AS status FROM tbl_categorygroupmaster ORDER BY gmid ASC'),
+      db.query(
+        DB,
+        `SELECT c.catid, c.catname, c.catdesc, COALESCE(c.catactive, true) AS active, c.gmid, g.groupname,
+                COALESCE(NULLIF(c.image_url, ''), c.catimgname, '') AS image_url
+         FROM product_category c
+         LEFT JOIN tbl_categorygroupmaster g ON g.gmid = c.gmid
+         ORDER BY c.catid ASC`
+      ),
+      db.query(
+        DB,
+        `SELECT sc.scatid, sc.scatname, sc.scatdesc, COALESCE(sc.scatactive, true) AS active, sc.catid, c.catname,
+                COALESCE(sc.image_url, '') AS image_url
+         FROM product_subcategory sc
+         LEFT JOIN product_category c ON c.catid = sc.catid
+         ORDER BY sc.scatid ASC`
+      ),
+    ]);
+    return res.json({ status: 'true', groups, categories, subcategories });
+  }
+
+  const gPg = parsePagination({ page: req.query.groupPage, limit: req.query.groupLimit }, 25, 200);
+  const cPg = parsePagination({ page: req.query.catPage, limit: req.query.catLimit }, 25, 200);
+  const sPg = parsePagination({ page: req.query.subPage, limit: req.query.subLimit }, 25, 200);
+  const search = String(req.query.search || '').trim();
+  const gmid = req.query.gmid ? parseInt(req.query.gmid, 10) : null;
+  const catid = req.query.catid ? parseInt(req.query.catid, 10) : null;
+
+  const gConds = ['1=1'];
+  const gParams = { limit: gPg.limit, offset: gPg.offset };
+  if (search) { gConds.push('groupname ILIKE @q'); gParams.q = `%${search}%`; }
+
+  const cConds = ['1=1'];
+  const cParams = { limit: cPg.limit, offset: cPg.offset };
+  if (search) { cConds.push('(c.catname ILIKE @q OR COALESCE(g.groupname, \'\') ILIKE @q)'); cParams.q = `%${search}%`; }
+  if (gmid) { cConds.push('c.gmid = @gmid'); cParams.gmid = gmid; }
+
+  const sConds = ['1=1'];
+  const sParams = { limit: sPg.limit, offset: sPg.offset };
+  if (search) { sConds.push('(sc.scatname ILIKE @q OR COALESCE(c.catname, \'\') ILIKE @q)'); sParams.q = `%${search}%`; }
+  if (catid) { sConds.push('sc.catid = @catid'); sParams.catid = catid; }
+
+  const [gTotal, groups, cTotal, categories, sTotal, subcategories] = await Promise.all([
+    db.scalar(DB, `SELECT COUNT(*)::int FROM tbl_categorygroupmaster WHERE ${gConds.join(' AND ')}`, gParams),
+    db.query(DB, `SELECT gmid, groupname, COALESCE(status, 1) AS status FROM tbl_categorygroupmaster WHERE ${gConds.join(' AND ')} ORDER BY gmid ASC LIMIT @limit OFFSET @offset`, gParams),
+    db.scalar(DB, `SELECT COUNT(*)::int FROM product_category c LEFT JOIN tbl_categorygroupmaster g ON g.gmid = c.gmid WHERE ${cConds.join(' AND ')}`, cParams),
     db.query(
       DB,
       `SELECT c.catid, c.catname, c.catdesc, COALESCE(c.catactive, true) AS active, c.gmid, g.groupname,
               COALESCE(NULLIF(c.image_url, ''), c.catimgname, '') AS image_url
        FROM product_category c
        LEFT JOIN tbl_categorygroupmaster g ON g.gmid = c.gmid
-       ORDER BY c.catid ASC`
+       WHERE ${cConds.join(' AND ')}
+       ORDER BY c.catid ASC
+       LIMIT @limit OFFSET @offset`,
+      cParams
     ),
+    db.scalar(DB, `SELECT COUNT(*)::int FROM product_subcategory sc LEFT JOIN product_category c ON c.catid = sc.catid WHERE ${sConds.join(' AND ')}`, sParams),
     db.query(
       DB,
       `SELECT sc.scatid, sc.scatname, sc.scatdesc, COALESCE(sc.scatactive, true) AS active, sc.catid, c.catname,
               COALESCE(sc.image_url, '') AS image_url
        FROM product_subcategory sc
        LEFT JOIN product_category c ON c.catid = sc.catid
-       ORDER BY sc.scatid ASC`
+       WHERE ${sConds.join(' AND ')}
+       ORDER BY sc.scatid ASC
+       LIMIT @limit OFFSET @offset`,
+      sParams
     ),
   ]);
-  res.json({ status: 'true', groups, categories, subcategories });
+
+  res.json({
+    status: 'true',
+    groups,
+    groupsPagination: buildPagination(gPg.page, gPg.limit, gTotal),
+    categories,
+    categoriesPagination: buildPagination(cPg.page, cPg.limit, cTotal),
+    subcategories,
+    subcategoriesPagination: buildPagination(sPg.page, sPg.limit, sTotal),
+  });
 }));
 
 router.post('/api/admin/category-groups', ...guard, asyncHandler(async (req, res) => {
@@ -901,17 +1042,45 @@ router.patch('/api/admin/orders/:id/status', ...guard, asyncHandler(async (req, 
   res.json({ status: 'true', message: 'Order status updated' });
 }));
 
-router.get('/api/admin/disputes', ...guard, asyncHandler(async (_req, res) => {
+router.get('/api/admin/disputes', ...guard, asyncHandler(async (req, res) => {
   await ensureCommerzaSchema();
-  const disputes = await db.query(
-    DB,
-    `SELECT d.*, pm.companyname, o.order_number
-     FROM commerza_disputes d
-     LEFT JOIN portal_master pm ON pm.pmid = d.pmid
-     LEFT JOIN commerza_orders o ON o.id = d.order_id
-     ORDER BY d.id DESC`
-  );
-  res.json({ status: 'true', disputes });
+  const { page, limit, offset } = parsePagination(req.query, 25, 200);
+  const statusFilter = String(req.query.status || 'all').trim().toLowerCase();
+  const search = String(req.query.search || '').trim();
+  const conds = ['1=1'];
+  const params = { limit, offset };
+  if (statusFilter && statusFilter !== 'all') {
+    conds.push('d.status = @statusFilter');
+    params.statusFilter = statusFilter;
+  }
+  if (search) {
+    conds.push('(d.subject ILIKE @q OR COALESCE(d.description, \'\') ILIKE @q OR COALESCE(pm.companyname, \'\') ILIKE @q OR COALESCE(o.order_number, \'\') ILIKE @q)');
+    params.q = `%${search}%`;
+  }
+  const where = conds.join(' AND ');
+  const [total, disputes] = await Promise.all([
+    db.scalar(
+      DB,
+      `SELECT COUNT(*)::int
+       FROM commerza_disputes d
+       LEFT JOIN portal_master pm ON pm.pmid = d.pmid
+       LEFT JOIN commerza_orders o ON o.id = d.order_id
+       WHERE ${where}`,
+      params
+    ),
+    db.query(
+      DB,
+      `SELECT d.*, pm.companyname, o.order_number
+       FROM commerza_disputes d
+       LEFT JOIN portal_master pm ON pm.pmid = d.pmid
+       LEFT JOIN commerza_orders o ON o.id = d.order_id
+       WHERE ${where}
+       ORDER BY d.id DESC
+       LIMIT @limit OFFSET @offset`,
+      params
+    ),
+  ]);
+  res.json({ status: 'true', disputes, pagination: buildPagination(page, limit, total) });
 }));
 
 router.post('/api/admin/disputes', ...guard, asyncHandler(async (req, res) => {
@@ -941,20 +1110,48 @@ router.patch('/api/admin/disputes/:id', ...guard, asyncHandler(async (req, res) 
 }));
 
 // ---- Admin Staff Users & Roles -------------------------------------------------------------
-router.get('/api/admin/users', ...guard, asyncHandler(async (_req, res) => {
+router.get('/api/admin/users', ...guard, asyncHandler(async (req, res) => {
   await ensureCommerzaSchema();
-  const users = await db.query(
-    DB,
-    'SELECT id, full_name, email, phone, role, is_active, created_at FROM commerza_admin_users ORDER BY id DESC'
-  );
-  res.json({ status: 'true', users });
+  const { page, limit, offset } = parsePagination(req.query, 25, 200);
+  const roleFilter = String(req.query.role || 'all').trim().toLowerCase();
+  const search = String(req.query.search || '').trim();
+  const conds = ['1=1'];
+  const params = { limit, offset };
+  if (roleFilter && roleFilter !== 'all') {
+    conds.push('role = @roleFilter');
+    params.roleFilter = roleFilter;
+  }
+  if (search) {
+    conds.push('(full_name ILIKE @q OR email ILIKE @q OR phone ILIKE @q)');
+    params.q = `%${search}%`;
+  }
+  const where = conds.join(' AND ');
+  const [total, users] = await Promise.all([
+    db.scalar(DB, `SELECT COUNT(*)::int FROM commerza_admin_users WHERE ${where}`, params),
+    db.query(
+      DB,
+      `SELECT id, full_name, email, phone, role, is_active, created_at
+       FROM commerza_admin_users
+       WHERE ${where}
+       ORDER BY id DESC
+       LIMIT @limit OFFSET @offset`,
+      params
+    ),
+  ]);
+  res.json({ status: 'true', users, pagination: buildPagination(page, limit, total) });
 }));
 
 router.post('/api/admin/users', ...guard, asyncHandler(async (req, res) => {
   await ensureCommerzaSchema();
   const { fullName, email, phone = '', password, role = 'moderator' } = req.body || {};
-  if (!fullName || !email || !password) {
-    return res.status(400).json({ status: 'false', message: 'fullName, email, and password are required' });
+  const validationErr = firstError([
+    checkText(fullName, 'Full name', { required: true, min: 2, max: 100 }),
+    checkEmail(email, { required: true, max: 120 }),
+    checkPhone(phone, { required: false }),
+    checkPassword(password, { required: true, min: 6, max: 64 }),
+  ]);
+  if (validationErr) {
+    return res.status(400).json({ status: 'false', message: validationErr });
   }
   const allowedRoles = ['super_admin', 'moderator', 'finance', 'support'];
   if (!allowedRoles.includes(role)) {
@@ -992,17 +1189,45 @@ router.delete('/api/admin/users/:id', ...guard, asyncHandler(async (req, res) =>
 }));
 
 // ---- Admin Coupons Monitor -----------------------------------------------------------------
-router.get('/api/admin/coupons', ...guard, asyncHandler(async (_req, res) => {
+router.get('/api/admin/coupons', ...guard, asyncHandler(async (req, res) => {
   await ensureCommerzaSchema();
-  const coupons = await db.query(
-    DB,
-    `SELECT c.*, pm.companyname, mp.producttitle
-     FROM commerza_coupons c
-     LEFT JOIN portal_master pm ON pm.pmid = c.pmid
-     LEFT JOIN ims_masterproduct mp ON mp.mprid = c.mprid
-     ORDER BY c.id DESC`
-  );
-  res.json({ status: 'true', coupons });
+  const { page, limit, offset } = parsePagination(req.query, 25, 200);
+  const search = String(req.query.search || '').trim();
+  const isActiveParam = String(req.query.isActive || '').trim().toLowerCase();
+  const conds = ['1=1'];
+  const params = { limit, offset };
+  if (search) {
+    conds.push('(c.code ILIKE @q OR c.title ILIKE @q OR COALESCE(pm.companyname, \'\') ILIKE @q OR COALESCE(mp.producttitle, \'\') ILIKE @q)');
+    params.q = `%${search}%`;
+  }
+  if (isActiveParam === 'true' || isActiveParam === 'false') {
+    conds.push('c.is_active = @isActive');
+    params.isActive = isActiveParam === 'true';
+  }
+  const where = conds.join(' AND ');
+  const [total, coupons] = await Promise.all([
+    db.scalar(
+      DB,
+      `SELECT COUNT(*)::int
+       FROM commerza_coupons c
+       LEFT JOIN portal_master pm ON pm.pmid = c.pmid
+       LEFT JOIN ims_masterproduct mp ON mp.mprid = c.mprid
+       WHERE ${where}`,
+      params
+    ),
+    db.query(
+      DB,
+      `SELECT c.*, pm.companyname, mp.producttitle
+       FROM commerza_coupons c
+       LEFT JOIN portal_master pm ON pm.pmid = c.pmid
+       LEFT JOIN ims_masterproduct mp ON mp.mprid = c.mprid
+       WHERE ${where}
+       ORDER BY c.id DESC
+       LIMIT @limit OFFSET @offset`,
+      params
+    ),
+  ]);
+  res.json({ status: 'true', coupons, pagination: buildPagination(page, limit, total) });
 }));
 
 router.patch('/api/admin/coupons/:id/toggle', ...guard, asyncHandler(async (req, res) => {
@@ -1016,21 +1241,41 @@ router.patch('/api/admin/coupons/:id/toggle', ...guard, asyncHandler(async (req,
 // ---- Admin Top-Up Wallet Approvals ---------------------------------------------------------
 router.get('/api/admin/topups', ...guard, asyncHandler(async (req, res) => {
   await ensureCommerzaSchema();
-  const statusFilter = req.query.status || 'all';
-  let where = '1=1';
-  if (['pending', 'approved', 'rejected'].includes(String(statusFilter))) {
-    where = 't.status = @statusFilter';
+  const { page, limit, offset } = parsePagination(req.query, 25, 200);
+  const statusFilter = String(req.query.status || 'all').trim().toLowerCase();
+  const search = String(req.query.search || '').trim();
+  const conds = ['1=1'];
+  const params = { limit, offset };
+  if (['pending', 'approved', 'rejected'].includes(statusFilter)) {
+    conds.push('t.status = @statusFilter');
+    params.statusFilter = statusFilter;
   }
-  const topups = await db.query(
-    DB,
-    `SELECT t.*, pm.companyname, pm.comemailid, pm.mobileno
-     FROM commerza_partner_topup_requests t
-     LEFT JOIN portal_master pm ON pm.pmid = t.pmid
-     WHERE ${where}
-     ORDER BY t.id DESC`,
-    { statusFilter }
-  );
-  res.json({ status: 'true', topups });
+  if (search) {
+    conds.push('(pm.companyname ILIKE @q OR pm.comemailid ILIKE @q OR pm.mobileno ILIKE @q OR COALESCE(t.transaction_ref, \'\') ILIKE @q)');
+    params.q = `%${search}%`;
+  }
+  const where = conds.join(' AND ');
+  const [total, topups] = await Promise.all([
+    db.scalar(
+      DB,
+      `SELECT COUNT(*)::int
+       FROM commerza_partner_topup_requests t
+       LEFT JOIN portal_master pm ON pm.pmid = t.pmid
+       WHERE ${where}`,
+      params
+    ),
+    db.query(
+      DB,
+      `SELECT t.*, pm.companyname, pm.comemailid, pm.mobileno
+       FROM commerza_partner_topup_requests t
+       LEFT JOIN portal_master pm ON pm.pmid = t.pmid
+       WHERE ${where}
+       ORDER BY t.id DESC
+       LIMIT @limit OFFSET @offset`,
+      params
+    ),
+  ]);
+  res.json({ status: 'true', topups, pagination: buildPagination(page, limit, total) });
 }));
 
 router.patch('/api/admin/topups/:id/review', ...guard, asyncHandler(async (req, res) => {
@@ -1297,8 +1542,12 @@ router.post('/api/admin/members/change-password', ...guard, asyncHandler(async (
   await ensureCommerzaSchema();
   const { username, passwordType = 'login', newPassword } = req.body || {};
   const uname = String(username || '').trim();
-  if (!uname || !newPassword || String(newPassword).length < 4) {
-    return res.status(400).json({ status: 'false', message: 'Valid username and newPassword (min 4 chars) are required' });
+  const validationErr = firstError([
+    checkText(uname, 'Username', { required: true, min: 2, max: 100 }),
+    checkPassword(newPassword, { required: true, min: 6, max: 64 }),
+  ]);
+  if (validationErr) {
+    return res.status(400).json({ status: 'false', message: validationErr });
   }
 
   const loginRow = await db.queryOne(
@@ -1501,10 +1750,17 @@ router.get('/api/admin/members/binary-tree', ...guard, asyncHandler(async (req, 
 }));
 
 // ---- Units & Category Attributes Master ----------------------------------------------------
-router.get('/api/admin/units', ...guard, asyncHandler(async (_req, res) => {
+router.get('/api/admin/units', ...guard, asyncHandler(async (req, res) => {
   await ensureCommerzaSchema();
-  const units = await db.query(DB, 'SELECT * FROM commerza_units ORDER BY sort_order ASC, id ASC');
-  res.json({ status: 'true', units });
+  const { page, limit, offset } = parsePagination(req.query, 25, 200);
+  const search = String(req.query.search || '').trim();
+  const where = search ? 'WHERE (code ILIKE @q OR name ILIKE @q OR symbol ILIKE @q OR unit_group ILIKE @q)' : '';
+  const params = search ? { q: `%${search}%`, limit, offset } : { limit, offset };
+  const [total, units] = await Promise.all([
+    db.scalar(DB, `SELECT COUNT(*)::int FROM commerza_units ${where}`, params),
+    db.query(DB, `SELECT * FROM commerza_units ${where} ORDER BY sort_order ASC, id ASC LIMIT @limit OFFSET @offset`, params),
+  ]);
+  res.json({ status: 'true', units, pagination: buildPagination(page, limit, total) });
 }));
 
 router.post('/api/admin/units', ...guard, asyncHandler(async (req, res) => {
@@ -1613,10 +1869,17 @@ router.get('/api/admin/categories/:catid/catalog-rules', ...guard, asyncHandler(
   res.json({ status: 'true', catid, unitLinks, sizeLinks, attributes });
 }));
 
-router.get('/api/admin/sizes', ...guard, asyncHandler(async (_req, res) => {
+router.get('/api/admin/sizes', ...guard, asyncHandler(async (req, res) => {
   await ensureCommerzaSchema();
-  const sizes = await db.query(DB, 'SELECT * FROM commerza_sizes ORDER BY sort_order ASC, id ASC');
-  res.json({ status: 'true', sizes });
+  const { page, limit, offset } = parsePagination(req.query, 25, 200);
+  const search = String(req.query.search || '').trim();
+  const where = search ? 'WHERE (code ILIKE @q OR name ILIKE @q OR size_group ILIKE @q)' : '';
+  const params = search ? { q: `%${search}%`, limit, offset } : { limit, offset };
+  const [total, sizes] = await Promise.all([
+    db.scalar(DB, `SELECT COUNT(*)::int FROM commerza_sizes ${where}`, params),
+    db.query(DB, `SELECT * FROM commerza_sizes ${where} ORDER BY sort_order ASC, id ASC LIMIT @limit OFFSET @offset`, params),
+  ]);
+  res.json({ status: 'true', sizes, pagination: buildPagination(page, limit, total) });
 }));
 
 router.post('/api/admin/sizes', ...guard, asyncHandler(async (req, res) => {
