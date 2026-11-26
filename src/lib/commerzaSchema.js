@@ -91,6 +91,18 @@ async function ensureCommerzaSchema() {
       ADD COLUMN IF NOT EXISTS customer_latitude DOUBLE PRECISION;
     ALTER TABLE dbo.commerza_orders
       ADD COLUMN IF NOT EXISTS customer_longitude DOUBLE PRECISION;
+    ALTER TABLE dbo.commerza_orders
+      ADD COLUMN IF NOT EXISTS assigned_delivery_user_id INTEGER;
+    ALTER TABLE dbo.commerza_orders
+      ADD COLUMN IF NOT EXISTS assigned_delivery_name VARCHAR(150) NOT NULL DEFAULT '';
+    ALTER TABLE dbo.commerza_orders
+      ADD COLUMN IF NOT EXISTS assigned_delivery_phone VARCHAR(40) NOT NULL DEFAULT '';
+    ALTER TABLE dbo.commerza_orders
+      ADD COLUMN IF NOT EXISTS assigned_at TIMESTAMP;
+    ALTER TABLE dbo.product_category
+      ADD COLUMN IF NOT EXISTS image_url TEXT NOT NULL DEFAULT '';
+    ALTER TABLE dbo.product_subcategory
+      ADD COLUMN IF NOT EXISTS image_url TEXT NOT NULL DEFAULT '';
 
     CREATE TABLE IF NOT EXISTS dbo.commerza_coupons (
       id SERIAL PRIMARY KEY,
@@ -119,10 +131,20 @@ async function ensureCommerzaSchema() {
       phone VARCHAR(40) NOT NULL DEFAULT '',
       password VARCHAR(255) NOT NULL,
       role VARCHAR(40) NOT NULL DEFAULT 'catalog_manager',
+      user_type VARCHAR(20) NOT NULL DEFAULT 'staff',
+      vehicle_type VARCHAR(40) NOT NULL DEFAULT '',
+      vehicle_number VARCHAR(40) NOT NULL DEFAULT '',
+      license_number VARCHAR(60) NOT NULL DEFAULT '',
+      is_available BOOLEAN NOT NULL DEFAULT TRUE,
       is_active BOOLEAN NOT NULL DEFAULT TRUE,
       created_at TIMESTAMP NOT NULL DEFAULT NOW(),
       UNIQUE (email)
     );
+    ALTER TABLE dbo.commerza_portal_users ADD COLUMN IF NOT EXISTS user_type VARCHAR(20) NOT NULL DEFAULT 'staff';
+    ALTER TABLE dbo.commerza_portal_users ADD COLUMN IF NOT EXISTS vehicle_type VARCHAR(40) NOT NULL DEFAULT '';
+    ALTER TABLE dbo.commerza_portal_users ADD COLUMN IF NOT EXISTS vehicle_number VARCHAR(40) NOT NULL DEFAULT '';
+    ALTER TABLE dbo.commerza_portal_users ADD COLUMN IF NOT EXISTS license_number VARCHAR(60) NOT NULL DEFAULT '';
+    ALTER TABLE dbo.commerza_portal_users ADD COLUMN IF NOT EXISTS is_available BOOLEAN NOT NULL DEFAULT TRUE;
 
     CREATE TABLE IF NOT EXISTS dbo.commerza_admin_users (
       id SERIAL PRIMARY KEY,
@@ -175,6 +197,57 @@ async function ensureCommerzaSchema() {
       setting_key VARCHAR(80) PRIMARY KEY,
       value_json JSONB NOT NULL DEFAULT '{}'::jsonb,
       updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS dbo.commerza_units (
+      id SERIAL PRIMARY KEY,
+      code VARCHAR(30) UNIQUE NOT NULL,
+      name VARCHAR(80) NOT NULL,
+      symbol VARCHAR(20) NOT NULL,
+      unit_group VARCHAR(40) NOT NULL DEFAULT 'count',
+      base_unit_code VARCHAR(30) NOT NULL DEFAULT '',
+      conversion_factor NUMERIC(12,4) NOT NULL DEFAULT 1,
+      is_active BOOLEAN NOT NULL DEFAULT TRUE,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS dbo.commerza_category_units (
+      id SERIAL PRIMARY KEY,
+      catid BIGINT NOT NULL,
+      unit_id INTEGER NOT NULL REFERENCES dbo.commerza_units(id) ON DELETE CASCADE,
+      is_default BOOLEAN NOT NULL DEFAULT FALSE,
+      UNIQUE (catid, unit_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS dbo.commerza_sizes (
+      id SERIAL PRIMARY KEY,
+      code VARCHAR(40) UNIQUE NOT NULL,
+      name VARCHAR(80) NOT NULL,
+      size_group VARCHAR(40) NOT NULL DEFAULT 'general',
+      is_active BOOLEAN NOT NULL DEFAULT TRUE,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS dbo.commerza_category_sizes (
+      id SERIAL PRIMARY KEY,
+      catid BIGINT NOT NULL,
+      size_id INTEGER NOT NULL REFERENCES dbo.commerza_sizes(id) ON DELETE CASCADE,
+      is_default BOOLEAN NOT NULL DEFAULT FALSE,
+      UNIQUE (catid, size_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS dbo.commerza_category_attributes (
+      id SERIAL PRIMARY KEY,
+      catid BIGINT NOT NULL DEFAULT 0,
+      attr_name VARCHAR(120) NOT NULL,
+      input_type VARCHAR(30) NOT NULL DEFAULT 'text',
+      options_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+      is_required BOOLEAN NOT NULL DEFAULT FALSE,
+      is_active BOOLEAN NOT NULL DEFAULT TRUE,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TIMESTAMP NOT NULL DEFAULT NOW()
     );
 
     CREATE TABLE IF NOT EXISTS dbo.commerza_partner_wallet_tx (
@@ -292,6 +365,110 @@ async function ensureCommerzaSchema() {
     'shopping',
     "UPDATE dbo.portal_login SET referalcode = 'CMZ-P' || pmid::text WHERE COALESCE(TRIM(referalcode), '') = '' AND pmid IS NOT NULL"
   ).catch(() => { });
+
+  // Seed default backend Units if empty
+  const unitCount = await db.scalar('shopping', 'SELECT COUNT(*)::int FROM commerza_units');
+  if (!unitCount || unitCount === 0) {
+    const defaultUnits = [
+      ['pcs', 'Pieces (pcs)', 'pcs', 'count', '', 1, 1],
+      ['pack', 'Pack', 'pack', 'pack', 'pcs', 1, 2],
+      ['box', 'Box', 'box', 'pack', 'pcs', 1, 3],
+      ['pair', 'Pair', 'pair', 'count', 'pcs', 2, 4],
+      ['set', 'Set', 'set', 'pack', 'pcs', 1, 5],
+      ['dozen', 'Dozen (12 pcs)', 'dz', 'count', 'pcs', 12, 6],
+      ['kg', 'Kilogram (kg)', 'kg', 'weight', 'g', 1000, 7],
+      ['g', 'Gram (g)', 'g', 'weight', 'g', 1, 8],
+      ['l', 'Litre (L)', 'L', 'volume', 'ml', 1000, 9],
+      ['ml', 'Millilitre (ml)', 'ml', 'volume', 'ml', 1, 10],
+      ['m', 'Metre (m)', 'm', 'length', 'cm', 100, 11],
+    ];
+    for (const [code, name, symbol, group, base, factor, order] of defaultUnits) {
+      await db.query(
+        'shopping',
+        `INSERT INTO commerza_units (code, name, symbol, unit_group, base_unit_code, conversion_factor, sort_order)
+         VALUES (@code, @name, @symbol, @group, @base, @factor, @order)
+         ON CONFLICT (code) DO NOTHING`,
+        { code, name, symbol, group, base, factor, order }
+      ).catch(() => { });
+    }
+  }
+
+  // Seed default backend Sizes if empty
+  const sizeCount = await db.scalar('shopping', 'SELECT COUNT(*)::int FROM commerza_sizes');
+  if (!sizeCount || sizeCount === 0) {
+    const defaultSizes = [
+      ['Standard', 'Standard', 'general', 1],
+      ['Free Size', 'Free Size', 'general', 2],
+      ['Small', 'Small', 'general', 3],
+      ['Medium', 'Medium', 'general', 4],
+      ['Large', 'Large', 'general', 5],
+      ['XS', 'XS (Extra Small)', 'apparel', 6],
+      ['S', 'S (Small)', 'apparel', 7],
+      ['M', 'M (Medium)', 'apparel', 8],
+      ['L', 'L (Large)', 'apparel', 9],
+      ['XL', 'XL (Extra Large)', 'apparel', 10],
+      ['XXL', 'XXL (2XL)', 'apparel', 11],
+      ['XXXL', 'XXXL (3XL)', 'apparel', 12],
+      ['28', '28', 'numeric', 13],
+      ['30', '30', 'numeric', 14],
+      ['32', '32', 'numeric', 15],
+      ['34', '34', 'numeric', 16],
+      ['36', '36', 'numeric', 17],
+      ['38', '38', 'numeric', 18],
+      ['40', '40', 'numeric', 19],
+      ['42', '42', 'numeric', 20],
+      ['UK 6', 'UK 6', 'footwear', 21],
+      ['UK 7', 'UK 7', 'footwear', 22],
+      ['UK 8', 'UK 8', 'footwear', 23],
+      ['UK 9', 'UK 9', 'footwear', 24],
+      ['UK 10', 'UK 10', 'footwear', 25],
+      ['UK 11', 'UK 11', 'footwear', 26],
+      ['100g', '100g', 'weight', 27],
+      ['250g', '250g', 'weight', 28],
+      ['500g', '500g', 'weight', 29],
+      ['1kg', '1kg', 'weight', 30],
+      ['2kg', '2kg', 'weight', 31],
+      ['250ml', '250ml', 'volume', 32],
+      ['500ml', '500ml', 'volume', 33],
+      ['1L', '1L', 'volume', 34],
+      ['2L', '2L', 'volume', 35],
+      ['Family Pack', 'Family Pack', 'pack', 36],
+      ['Combo', 'Combo', 'pack', 37],
+      ['Pro', 'Pro', 'pack', 38],
+      ['Deluxe', 'Deluxe', 'pack', 39],
+    ];
+    for (const [code, name, group, order] of defaultSizes) {
+      await db.query(
+        'shopping',
+        `INSERT INTO commerza_sizes (code, name, size_group, sort_order)
+         VALUES (@code, @name, @group, @order)
+         ON CONFLICT (code) DO NOTHING`,
+        { code, name, group, order }
+      ).catch(() => { });
+    }
+  }
+
+  // Seed starter global & category attributes if empty
+  const attrCount = await db.scalar('shopping', 'SELECT COUNT(*)::int FROM commerza_category_attributes');
+  if (!attrCount || attrCount === 0) {
+    const starterAttrs = [
+      [0, 'Brand', 'text', [], true, 1],
+      [0, 'Country of Origin', 'select', ['India', 'China', 'USA', 'Germany', 'Japan', 'Other'], false, 2],
+      [1, 'Shelf Life / Expiry', 'text', [], false, 3],
+      [1, 'Dietary Type', 'select', ['Veg', 'Non-Veg', 'Vegan'], false, 4],
+      [2, 'Warranty', 'select', ['No Warranty', '6 Months', '1 Year', '2 Years'], false, 3],
+      [3, 'Material / Fabric', 'select', ['Cotton', 'Polyester', 'Silk', 'Denim', 'Leather', 'Blend'], false, 3],
+      [3, 'Wash Care', 'select', ['Machine Wash', 'Hand Wash', 'Dry Clean Only'], false, 4],
+    ];
+    for (const [catid, name, inputType, opts, req, order] of starterAttrs) {
+      await db.query(
+        'shopping',
+        `INSERT INTO commerza_category_attributes (catid, attr_name, input_type, options_json, is_required, sort_order)
+         VALUES (@catid, @name, @inputType, @opts::jsonb, @req, @order)`,
+        { catid, name, inputType, opts: JSON.stringify(opts), req, order }
+      ).catch(() => { });
+    }
+  }
 
   // Seed default partner packages if empty
   const pkgCount = await db.scalar('shopping', 'SELECT COUNT(*)::int FROM commerza_packages');

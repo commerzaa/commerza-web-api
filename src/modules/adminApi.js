@@ -638,14 +638,16 @@ router.get('/api/admin/categories', ...guard, asyncHandler(async (_req, res) => 
     db.query(DB, 'SELECT gmid, groupname, COALESCE(status, 1) AS status FROM tbl_categorygroupmaster ORDER BY gmid ASC'),
     db.query(
       DB,
-      `SELECT c.catid, c.catname, c.catdesc, COALESCE(c.catactive, true) AS active, c.gmid, g.groupname
+      `SELECT c.catid, c.catname, c.catdesc, COALESCE(c.catactive, true) AS active, c.gmid, g.groupname,
+              COALESCE(NULLIF(c.image_url, ''), c.catimgname, '') AS image_url
        FROM product_category c
        LEFT JOIN tbl_categorygroupmaster g ON g.gmid = c.gmid
        ORDER BY c.catid ASC`
     ),
     db.query(
       DB,
-      `SELECT sc.scatid, sc.scatname, sc.scatdesc, COALESCE(sc.scatactive, true) AS active, sc.catid, c.catname
+      `SELECT sc.scatid, sc.scatname, sc.scatdesc, COALESCE(sc.scatactive, true) AS active, sc.catid, c.catname,
+              COALESCE(sc.image_url, '') AS image_url
        FROM product_subcategory sc
        LEFT JOIN product_category c ON c.catid = sc.catid
        ORDER BY sc.scatid ASC`
@@ -723,32 +725,35 @@ router.post('/api/admin/subcategories', ...guard, asyncHandler(async (req, res) 
   await ensureCommerzaSchema();
   const scatname = String(req.body?.scatname || '').trim();
   const catid = parseInt(req.body?.catid || 0, 10);
+  const imageUrl = String(req.body?.image_url || '').trim();
   if (!scatname || !catid) return res.status(400).json({ status: 'false', message: 'scatname and catid are required' });
   const nextId = await db.scalar(DB, 'SELECT COALESCE(MAX(scatid), 0) + 1 FROM product_subcategory');
   await db.query(
     DB,
-    'INSERT INTO product_subcategory (scatid, scatname, scatactive, catid) VALUES (@scatid, @scatname, true, @catid)',
-    { scatid: nextId, scatname, catid }
+    'INSERT INTO product_subcategory (scatid, scatname, scatactive, catid, image_url) VALUES (@scatid, @scatname, true, @catid, @imageUrl)',
+    { scatid: nextId, scatname, catid, imageUrl }
   );
-  res.status(201).json({ status: 'true', subcategory: { scatid: Number(nextId), scatname, catid, active: true } });
+  res.status(201).json({ status: 'true', subcategory: { scatid: Number(nextId), scatname, catid, image_url: imageUrl, active: true } });
 }));
 
 router.patch('/api/admin/subcategories/:scatid', ...guard, asyncHandler(async (req, res) => {
   await ensureCommerzaSchema();
   const scatid = parseInt(req.params.scatid, 10);
-  const { scatname, active, catid } = req.body || {};
+  const { scatname, active, catid, image_url } = req.body || {};
   const updated = await db.exec(
     DB,
     `UPDATE product_subcategory
      SET scatname = COALESCE(@scatname, scatname),
          scatactive = COALESCE(@active, scatactive),
-         catid = COALESCE(@catid, catid)
+         catid = COALESCE(@catid, catid),
+         image_url = COALESCE(@imageUrl, image_url)
      WHERE scatid = @scatid`,
     {
       scatid,
       scatname: scatname ?? null,
       active: active !== undefined ? Boolean(active) : null,
       catid: catid !== undefined ? parseInt(catid, 10) : null,
+      imageUrl: image_url ?? null,
     }
   );
   if (!updated) return res.status(404).json({ status: 'false', message: 'Subcategory not found' });
@@ -1292,6 +1297,232 @@ router.get('/api/admin/members/generation', ...guard, asyncHandler(async (req, r
   );
 
   res.json({ status: 'true', generations });
+}));
+
+// ---- Units & Category Attributes Master ----------------------------------------------------
+router.get('/api/admin/units', ...guard, asyncHandler(async (_req, res) => {
+  await ensureCommerzaSchema();
+  const units = await db.query(DB, 'SELECT * FROM commerza_units ORDER BY sort_order ASC, id ASC');
+  res.json({ status: 'true', units });
+}));
+
+router.post('/api/admin/units', ...guard, asyncHandler(async (req, res) => {
+  await ensureCommerzaSchema();
+  const {
+    code,
+    name,
+    symbol,
+    unit_group = 'count',
+    base_unit_code = '',
+    conversion_factor = 1,
+    sort_order = 0,
+  } = req.body || {};
+  const cleanCode = String(code || '').trim().toLowerCase();
+  if (!cleanCode || !name) {
+    return res.status(400).json({ status: 'false', message: 'code and name are required' });
+  }
+  const unit = await db.queryOne(
+    DB,
+    `INSERT INTO commerza_units (code, name, symbol, unit_group, base_unit_code, conversion_factor, sort_order)
+     VALUES (@code, @name, @symbol, @group, @base, @factor, @order)
+     RETURNING *`,
+    {
+      code: cleanCode,
+      name: String(name).trim(),
+      symbol: String(symbol || cleanCode).trim(),
+      group: String(unit_group || 'count'),
+      base: String(base_unit_code || ''),
+      factor: Number(conversion_factor || 1),
+      order: parseInt(sort_order || 0, 10),
+    }
+  );
+  res.status(201).json({ status: 'true', unit });
+}));
+
+router.put('/api/admin/units/:id', ...guard, asyncHandler(async (req, res) => {
+  await ensureCommerzaSchema();
+  const id = parseInt(req.params.id, 10);
+  const { name, symbol, unit_group, base_unit_code, conversion_factor, sort_order, is_active } = req.body || {};
+  const unit = await db.queryOne(
+    DB,
+    `UPDATE commerza_units
+     SET name = COALESCE(@name, name),
+         symbol = COALESCE(@symbol, symbol),
+         unit_group = COALESCE(@group, unit_group),
+         base_unit_code = COALESCE(@base, base_unit_code),
+         conversion_factor = COALESCE(@factor, conversion_factor),
+         sort_order = COALESCE(@order, sort_order),
+         is_active = COALESCE(@active, is_active)
+     WHERE id = @id
+     RETURNING *`,
+    {
+      id,
+      name: name ?? null,
+      symbol: symbol ?? null,
+      group: unit_group ?? null,
+      base: base_unit_code ?? null,
+      factor: conversion_factor !== undefined ? Number(conversion_factor) : null,
+      order: sort_order !== undefined ? parseInt(sort_order, 10) : null,
+      active: is_active !== undefined ? Boolean(is_active) : null,
+    }
+  );
+  if (!unit) return res.status(404).json({ status: 'false', message: 'Unit not found' });
+  res.json({ status: 'true', unit });
+}));
+
+router.patch('/api/admin/units/:id/toggle', ...guard, asyncHandler(async (req, res) => {
+  await ensureCommerzaSchema();
+  const id = parseInt(req.params.id, 10);
+  const active = Boolean(req.body?.is_active);
+  const updated = await db.exec(DB, 'UPDATE commerza_units SET is_active = @active WHERE id = @id', { id, active });
+  if (!updated) return res.status(404).json({ status: 'false', message: 'Unit not found' });
+  res.json({ status: 'true', message: 'Unit status updated' });
+}));
+
+router.get('/api/admin/categories/:catid/catalog-rules', ...guard, asyncHandler(async (req, res) => {
+  await ensureCommerzaSchema();
+  const catid = parseInt(req.params.catid, 10);
+  const [unitLinks, sizeLinks, attributes] = await Promise.all([
+    db.query(
+      DB,
+      `SELECT cu.unit_id, cu.is_default, u.code, u.name, u.symbol
+       FROM commerza_category_units cu
+       JOIN commerza_units u ON u.id = cu.unit_id
+       WHERE cu.catid = @catid
+       ORDER BY u.sort_order ASC, u.id ASC`,
+      { catid }
+    ),
+    db.query(
+      DB,
+      `SELECT cs.size_id, cs.is_default, s.code, s.name, s.size_group
+       FROM commerza_category_sizes cs
+       JOIN commerza_sizes s ON s.id = cs.size_id
+       WHERE cs.catid = @catid
+       ORDER BY s.sort_order ASC, s.id ASC`,
+      { catid }
+    ),
+    db.query(
+      DB,
+      `SELECT * FROM commerza_category_attributes
+       WHERE catid = @catid
+       ORDER BY sort_order ASC, id ASC`,
+      { catid }
+    ),
+  ]);
+  res.json({ status: 'true', catid, unitLinks, sizeLinks, attributes });
+}));
+
+router.get('/api/admin/sizes', ...guard, asyncHandler(async (_req, res) => {
+  await ensureCommerzaSchema();
+  const sizes = await db.query(DB, 'SELECT * FROM commerza_sizes ORDER BY sort_order ASC, id ASC');
+  res.json({ status: 'true', sizes });
+}));
+
+router.post('/api/admin/sizes', ...guard, asyncHandler(async (req, res) => {
+  await ensureCommerzaSchema();
+  const { code, name, size_group = 'general', sort_order = 0 } = req.body || {};
+  const cleanCode = String(code || '').trim();
+  if (!cleanCode) {
+    return res.status(400).json({ status: 'false', message: 'size code is required' });
+  }
+  const size = await db.queryOne(
+    DB,
+    `INSERT INTO commerza_sizes (code, name, size_group, sort_order)
+     VALUES (@code, @name, @group, @order)
+     RETURNING *`,
+    {
+      code: cleanCode,
+      name: String(name || cleanCode).trim(),
+      group: String(size_group || 'general'),
+      order: parseInt(sort_order || 0, 10),
+    }
+  );
+  res.status(201).json({ status: 'true', size });
+}));
+
+router.patch('/api/admin/sizes/:id/toggle', ...guard, asyncHandler(async (req, res) => {
+  await ensureCommerzaSchema();
+  const id = parseInt(req.params.id, 10);
+  const active = Boolean(req.body?.is_active);
+  const updated = await db.exec(DB, 'UPDATE commerza_sizes SET is_active = @active WHERE id = @id', { id, active });
+  if (!updated) return res.status(404).json({ status: 'false', message: 'Size not found' });
+  res.json({ status: 'true', message: 'Size status updated' });
+}));
+
+router.put('/api/admin/categories/:catid/sizes', ...guard, asyncHandler(async (req, res) => {
+  await ensureCommerzaSchema();
+  const catid = parseInt(req.params.catid, 10);
+  const { sizeIds = [], defaultSizeId = null } = req.body || {};
+  await db.tx(DB, async (t) => {
+    await t.query('DELETE FROM commerza_category_sizes WHERE catid = @catid', { catid });
+    for (const sid of sizeIds) {
+      const numId = parseInt(sid, 10);
+      if (!numId) continue;
+      await t.query(
+        `INSERT INTO commerza_category_sizes (catid, size_id, is_default)
+         VALUES (@catid, @sid, @isDef)
+         ON CONFLICT (catid, size_id) DO UPDATE SET is_default = EXCLUDED.is_default`,
+        { catid, sid: numId, isDef: Number(defaultSizeId) === numId }
+      );
+    }
+  });
+  res.json({ status: 'true', message: 'Category allowed sizes updated' });
+}));
+
+router.put('/api/admin/categories/:catid/units', ...guard, asyncHandler(async (req, res) => {
+  await ensureCommerzaSchema();
+  const catid = parseInt(req.params.catid, 10);
+  const { unitIds = [], defaultUnitId = null } = req.body || {};
+
+  await db.tx(DB, async (t) => {
+    await t.query('DELETE FROM commerza_category_units WHERE catid = @catid', { catid });
+    for (const uid of unitIds) {
+      const numId = parseInt(uid, 10);
+      if (!numId) continue;
+      await t.query(
+        `INSERT INTO commerza_category_units (catid, unit_id, is_default)
+         VALUES (@catid, @uid, @isDef)
+         ON CONFLICT (catid, unit_id) DO UPDATE SET is_default = EXCLUDED.is_default`,
+        { catid, uid: numId, isDef: Number(defaultUnitId) === numId }
+      );
+    }
+  });
+  res.json({ status: 'true', message: 'Category allowed units updated' });
+}));
+
+router.post('/api/admin/categories/:catid/attributes', ...guard, asyncHandler(async (req, res) => {
+  await ensureCommerzaSchema();
+  const catid = parseInt(req.params.catid, 10);
+  const { attr_name, input_type = 'text', options = [], is_required = false, sort_order = 0 } = req.body || {};
+  if (!attr_name || !String(attr_name).trim()) {
+    return res.status(400).json({ status: 'false', message: 'attr_name is required' });
+  }
+  const opts = Array.isArray(options)
+    ? options.map((s) => String(s).trim()).filter(Boolean)
+    : String(options || '').split(',').map((s) => s.trim()).filter(Boolean);
+
+  const row = await db.queryOne(
+    DB,
+    `INSERT INTO commerza_category_attributes (catid, attr_name, input_type, options_json, is_required, sort_order)
+     VALUES (@catid, @name, @type, @opts::jsonb, @req, @order)
+     RETURNING *`,
+    {
+      catid,
+      name: String(attr_name).trim(),
+      type: ['text', 'select', 'number', 'boolean'].includes(input_type) ? input_type : 'text',
+      opts: JSON.stringify(opts),
+      req: Boolean(is_required),
+      order: parseInt(sort_order || 0, 10),
+    }
+  );
+  res.status(201).json({ status: 'true', attribute: row });
+}));
+
+router.delete('/api/admin/category-attributes/:id', ...guard, asyncHandler(async (req, res) => {
+  await ensureCommerzaSchema();
+  const id = parseInt(req.params.id, 10);
+  await db.exec(DB, 'DELETE FROM commerza_category_attributes WHERE id = @id', { id });
+  res.json({ status: 'true', message: 'Attribute template deleted' });
 }));
 
 module.exports = router;

@@ -788,6 +788,113 @@ function buildImagesString(thumbnailUrl, galleryImages, fallbackString) {
   return String(fallbackString || '');
 }
 
+async function getCatalogMetaForCategory(catid) {
+  const cid = parseInt(catid || 0, 10) || 0;
+  const mappedUnits = cid > 0
+    ? await db.query(
+      DB,
+      `SELECT u.*, cu.is_default
+         FROM commerza_category_units cu
+         JOIN commerza_units u ON u.id = cu.unit_id
+         WHERE cu.catid = @cid AND u.is_active = true
+         ORDER BY cu.is_default DESC, u.sort_order ASC, u.id ASC`,
+      { cid }
+    )
+    : [];
+
+  const units = mappedUnits.length > 0
+    ? mappedUnits
+    : await db.query(
+      DB,
+      `SELECT *, (code = 'pcs') AS is_default
+         FROM commerza_units
+         WHERE is_active = true
+         ORDER BY sort_order ASC, id ASC`
+    );
+
+  const defaultUnitCode = (units.find((u) => u.is_default) || units[0])?.code || 'pcs';
+
+  const mappedSizes = cid > 0
+    ? await db.query(
+      DB,
+      `SELECT s.*, cs.is_default
+         FROM commerza_category_sizes cs
+         JOIN commerza_sizes s ON s.id = cs.size_id
+         WHERE cs.catid = @cid AND s.is_active = true
+         ORDER BY cs.is_default DESC, s.sort_order ASC, s.id ASC`,
+      { cid }
+    )
+    : [];
+
+  const sizes = mappedSizes.length > 0
+    ? mappedSizes
+    : await db.query(
+      DB,
+      `SELECT *, (code = 'Standard') AS is_default
+         FROM commerza_sizes
+         WHERE is_active = true
+         ORDER BY sort_order ASC, id ASC`
+    );
+
+  const defaultSizeCode = (sizes.find((s) => s.is_default) || sizes[0])?.code || '';
+
+  const attributes = await db.query(
+    DB,
+    `SELECT * FROM commerza_category_attributes
+     WHERE is_active = true AND (catid = 0 OR catid = @cid)
+     ORDER BY CASE WHEN catid = @cid THEN 0 ELSE 1 END, sort_order ASC, id ASC`,
+    { cid }
+  );
+
+  return {
+    units,
+    defaultUnitCode,
+    sizes,
+    defaultSizeCode,
+    attributes,
+    restrictedToCategory: mappedUnits.length > 0,
+    sizesRestrictedToCategory: mappedSizes.length > 0,
+  };
+}
+
+async function resolveValidUnit(catid, rawUnit) {
+  const meta = await getCatalogMetaForCategory(catid);
+  const val = String(rawUnit || meta.defaultUnitCode || 'pcs').trim();
+  const matched = meta.units.find(
+    (u) => u.code.toLowerCase() === val.toLowerCase() || u.symbol.toLowerCase() === val.toLowerCase()
+  );
+  if (!matched) {
+    const allowedList = meta.units.map((u) => u.code).join(', ');
+    const err = new Error(`Invalid unit '${val}'. Allowed backend units${meta.restrictedToCategory ? ' for this category' : ''}: ${allowedList}`);
+    err.status = 400;
+    throw err;
+  }
+  return matched.code;
+}
+
+async function resolveValidSize(catid, rawSize) {
+  const val = String(rawSize || '').trim();
+  if (!val) return '';
+  const meta = await getCatalogMetaForCategory(catid);
+  const matched = meta.sizes.find(
+    (s) => s.code.toLowerCase() === val.toLowerCase() || s.name.toLowerCase() === val.toLowerCase()
+  );
+  if (!matched) {
+    const allowedList = meta.sizes.map((s) => s.code).join(', ');
+    const err = new Error(`Invalid size '${val}'. Allowed backend sizes${meta.sizesRestrictedToCategory ? ' for this category' : ''}: ${allowedList}`);
+    err.status = 400;
+    throw err;
+  }
+  return matched.code;
+}
+
+router.get('/api/partner/catalog-meta', ...guard, asyncHandler(async (req, res) => {
+  await ensureCommerzaSchema();
+  const catid = parseInt(req.query.catid || 0, 10) || 0;
+  const meta = await getCatalogMetaForCategory(catid);
+  res.json({ status: 'true', catid, ...meta });
+}));
+
 router.get('/api/partner/products', ...guard, asyncHandler(async (req, res) => {
   await ensureCommerzaSchema();
   const pmid = Number(req.user.pmid);
@@ -1013,8 +1120,12 @@ router.post('/api/partner/products', ...guard, requireApprovedSubscription, asyn
 
     const sprids = [];
     for (let i = 0; i < variantsInput.length; i++) {
+      const validUnit = await resolveValidUnit(catid, variantsInput[i].unit);
+      const validSize = await resolveValidSize(catid, variantsInput[i].size);
       const v = {
         ...variantsInput[i],
+        unit: validUnit,
+        size: validSize,
         hsnCode: variantsInput[i].hsnCode ?? b.hsnCode,
         specification: variantsInput[i].specification ?? b.specification,
         manufacturerDetails: variantsInput[i].manufacturerDetails ?? b.manufacturerDetails,
@@ -1052,6 +1163,8 @@ router.post('/api/partner/products/:mprid/variants', ...guard, requireApprovedSu
   if (!master) return res.status(404).json({ status: 'false', message: 'Master product not found' });
 
   const existingCount = await db.scalar(DB, 'SELECT COUNT(*)::int FROM ims_subproduct WHERE mprid = @mprid', { mprid });
+  const validUnit = await resolveValidUnit(master.catid || 1, v.unit);
+  const validSize = await resolveValidSize(master.catid || 1, v.size);
 
   const sprid = await db.tx(DB, (t) =>
     insertVariantTx(t, {
@@ -1060,7 +1173,7 @@ router.post('/api/partner/products/:mprid/variants', ...guard, requireApprovedSu
       productCode: master.productcode,
       catid: master.catid || 1,
       subcatid: master.subcategoryid || 0,
-      v,
+      v: { ...v, unit: validUnit, size: validSize },
       index: Number(existingCount || 0),
     })
   );
@@ -1076,12 +1189,15 @@ router.put('/api/partner/products/:sprid', ...guard, requireApprovedSubscription
 
   const existing = await db.queryOne(
     DB,
-    `SELECT sp.sprid, sp.mprid FROM ims_subproduct sp
+    `SELECT sp.sprid, sp.mprid, mp.catid FROM ims_subproduct sp
      JOIN ims_masterproduct mp ON mp.mprid = sp.mprid
      WHERE sp.sprid = @sprid AND mp.companyid = @pmid`,
     { sprid, pmid }
   );
   if (!existing) return res.status(404).json({ status: 'false', message: 'Product not found' });
+
+  const validUnit = b.unit !== undefined ? await resolveValidUnit(b.catid ?? existing.catid, b.unit) : null;
+  const validSize = b.size !== undefined ? await resolveValidSize(b.catid ?? existing.catid, b.size) : null;
 
   await db.tx(DB, async (t) => {
     await t.query(
@@ -1141,9 +1257,9 @@ router.put('/api/partner/products/:sprid', ...guard, requireApprovedSubscription
         sellMrp: b.sellMrp !== undefined ? Number(b.sellMrp) : null,
         sellingPrice: b.sellingPrice !== undefined ? Number(b.sellingPrice) : null,
         allowCoupon: b.isAllowCoupon !== undefined ? Boolean(b.isAllowCoupon) : null,
-        unit: b.unit ?? null,
+        unit: validUnit,
         color: b.color ?? null,
-        size: b.size ?? null,
+        size: validSize,
         images: imagesStr,
         stock: stockVal,
         cod: b.cashOnDelivery !== undefined ? Boolean(b.cashOnDelivery) : null,
@@ -1220,15 +1336,106 @@ router.delete('/api/partner/products/:sprid', ...guard, asyncHandler(async (req,
   const sprid = parseInt(req.params.sprid, 10);
   const existing = await db.queryOne(
     DB,
-    `SELECT sp.sprid, sp.mprid FROM ims_subproduct sp
+    `SELECT sp.sprid, sp.mprid, mp.catid FROM ims_subproduct sp
      JOIN ims_masterproduct mp ON mp.mprid = sp.mprid
      WHERE sp.sprid = @sprid AND mp.companyid = @pmid`,
     { sprid, pmid }
   );
   if (!existing) return res.status(404).json({ status: 'false', message: 'Product not found' });
+
+  const validUnit = b.unit !== undefined ? await resolveValidUnit(b.catid ?? existing.catid, b.unit) : null;
+  const validSize = b.size !== undefined ? await resolveValidSize(b.catid ?? existing.catid, b.size) : null;
   await db.exec(DB, 'DELETE FROM ims_subproduct WHERE sprid = @sprid', { sprid });
   await db.exec(DB, 'DELETE FROM commerza_product_meta WHERE sprid = @sprid', { sprid });
   res.json({ status: 'true', message: 'Product removed' });
+}));
+
+// ---- Storefront Customer Order Placement (Public) ------------------------------------------
+router.post('/api/storefront/orders', asyncHandler(async (req, res) => {
+  await ensureCommerzaSchema();
+  const b = req.body || {};
+  const items = Array.isArray(b.items) ? b.items : [];
+  if (items.length === 0) {
+    return res.status(400).json({ status: 'false', message: 'Order items are required' });
+  }
+
+  const customerName = String(b.customerName || '').trim();
+  const customerPhone = String(b.phone || b.customerPhone || '').trim();
+  const customerEmail = String(b.email || b.customerEmail || '').trim();
+  const address = [b.address, b.city, b.state].filter(Boolean).join(', ');
+  const pincode = String(b.pincode || '').trim();
+  if (!customerName || !customerPhone || !address || !pincode) {
+    return res.status(400).json({ status: 'false', message: 'customerName, phone, address, and pincode are required' });
+  }
+
+  // Resolve shop pmid for each item from ims_subproduct -> ims_masterproduct
+  const groupedByShop = new Map();
+  for (const item of items) {
+    const sprid = parseInt(item.sprid || item.id || 0, 10);
+    let shopPmid = parseInt(item.pmid || 0, 10) || 0;
+    if (!shopPmid && sprid > 0) {
+      const row = await db.queryOne(
+        DB,
+        'SELECT mp.companyid AS pmid FROM ims_subproduct sp JOIN ims_masterproduct mp ON mp.mprid = sp.mprid WHERE sp.sprid = @sprid LIMIT 1',
+        { sprid }
+      );
+      if (row?.pmid) shopPmid = Number(row.pmid);
+    }
+    if (!shopPmid) shopPmid = 1; // fallback to primary demo shop if catalog item has no companyid
+    if (!groupedByShop.has(shopPmid)) groupedByShop.set(shopPmid, []);
+    groupedByShop.get(shopPmid).push(item);
+  }
+
+  const baseOrderNo = String(b.orderNumber || `CO-${Date.now().toString().slice(-6)}`);
+  const createdOrders = [];
+  let idx = 0;
+
+  for (const [pmid, shopItems] of groupedByShop.entries()) {
+    idx += 1;
+    const orderNumber = groupedByShop.size > 1 ? `${baseOrderNo}-${idx}` : baseOrderNo;
+    const shopSubtotal = shopItems.reduce((sum, it) => sum + Number(it.price || 0) * Number(it.quantity || 1), 0);
+    const deliveryFee = idx === 1 ? Number(b.shipping || b.deliveryFee || 0) : 0;
+    const totalAmount = Number((shopSubtotal + deliveryFee).toFixed(2));
+
+    const row = await db.queryOne(
+      DB,
+      `INSERT INTO commerza_orders (
+         order_number, pmid, customer_name, customer_phone, customer_email,
+         delivery_address, delivery_pincode, customer_latitude, customer_longitude,
+         delivery_method, delivery_fee, subtotal, total_amount,
+         payment_status, fulfillment_status, items_json
+       ) VALUES (
+         @orderNumber, @pmid, @name, @phone, @email,
+         @addr, @pin, @lat, @lng,
+         @method, @fee, @sub, @total,
+         @payStatus, 'pending', @items::jsonb
+       ) RETURNING *`,
+      {
+        orderNumber,
+        pmid,
+        name: customerName,
+        phone: customerPhone,
+        email: customerEmail,
+        addr: address,
+        pin: pincode,
+        lat: b.latitude !== undefined ? Number(b.latitude) : null,
+        lng: b.longitude !== undefined ? Number(b.longitude) : null,
+        method: String(b.deliveryMethod || 'local'),
+        fee: deliveryFee,
+        sub: shopSubtotal,
+        total: totalAmount,
+        payStatus: String(b.paymentMethod || '').toUpperCase() === 'COD' ? 'cod_pending' : 'paid',
+        items: JSON.stringify(shopItems),
+      }
+    );
+    createdOrders.push(row);
+  }
+
+  res.status(201).json({
+    status: 'true',
+    message: 'Order placed and sent to partner shop(s)',
+    orders: createdOrders,
+  });
 }));
 
 // ---- Orders & Fulfillment ------------------------------------------------------------------
@@ -1239,10 +1446,12 @@ router.get('/api/partner/orders', ...guard, asyncHandler(async (req, res) => {
     DB,
     `SELECT o.*, s.provider, s.awb_code, s.courier_name, s.status AS shipment_status, s.tracking_url,
             sd.latitude AS shop_latitude, sd.longitude AS shop_longitude,
-            pm.companyname AS shop_name, pm.address AS shop_address, pm.pincode AS shop_pincode
+            pm.companyname AS shop_name, pm.address AS shop_address, pm.pincode AS shop_pincode,
+            du.vehicle_type AS delivery_vehicle_type, du.vehicle_number AS delivery_vehicle_number
      FROM commerza_orders o
      LEFT JOIN portal_master pm ON pm.pmid = o.pmid
      LEFT JOIN commerza_shop_details sd ON sd.pmid = o.pmid
+     LEFT JOIN commerza_portal_users du ON du.id = o.assigned_delivery_user_id AND du.pmid = o.pmid
      LEFT JOIN LATERAL (
        SELECT * FROM commerza_shipments sh WHERE sh.order_id = o.id ORDER BY sh.id DESC LIMIT 1
      ) s ON TRUE
@@ -1251,6 +1460,84 @@ router.get('/api/partner/orders', ...guard, asyncHandler(async (req, res) => {
     { pmid }
   );
   res.json({ status: 'true', orders });
+}));
+
+router.patch('/api/partner/orders/:id/assign-delivery', ...guard, requireApprovedSubscription, asyncHandler(async (req, res) => {
+  await ensureCommerzaSchema();
+  const pmid = Number(req.user.pmid);
+  const id = parseInt(req.params.id, 10);
+  const { deliveryUserId, markOutForDelivery = false } = req.body || {};
+
+  if (!deliveryUserId) {
+    const updated = await db.exec(
+      DB,
+      `UPDATE commerza_orders
+       SET assigned_delivery_user_id = NULL, assigned_delivery_name = '', assigned_delivery_phone = '', assigned_at = NULL, updated_at = NOW()
+       WHERE id = @id AND pmid = @pmid`,
+      { id, pmid }
+    );
+    if (!updated) return res.status(404).json({ status: 'false', message: 'Order not found' });
+    return res.json({ status: 'true', message: 'Delivery boy unassigned' });
+  }
+
+  const rider = await db.queryOne(
+    DB,
+    `SELECT id, full_name, phone, is_active
+     FROM commerza_portal_users
+     WHERE id = @uid AND pmid = @pmid AND (user_type = 'delivery_boy' OR role = 'delivery_boy')`,
+    { uid: parseInt(deliveryUserId, 10), pmid }
+  );
+  if (!rider) {
+    return res.status(404).json({ status: 'false', message: 'Delivery boy not found for this shop' });
+  }
+  if (!rider.is_active) {
+    return res.status(400).json({ status: 'false', message: 'Selected delivery boy is currently disabled' });
+  }
+
+  const updated = await db.exec(
+    DB,
+    `UPDATE commerza_orders
+     SET assigned_delivery_user_id = @uid,
+         assigned_delivery_name = @name,
+         assigned_delivery_phone = @phone,
+         assigned_at = NOW(),
+         fulfillment_status = CASE WHEN @markOut AND fulfillment_status IN ('pending','accepted','preparing') THEN 'out_for_delivery' ELSE fulfillment_status END,
+         updated_at = NOW()
+     WHERE id = @id AND pmid = @pmid`,
+    {
+      id,
+      pmid,
+      uid: rider.id,
+      name: rider.full_name,
+      phone: rider.phone || '',
+      markOut: Boolean(markOutForDelivery),
+    }
+  );
+  if (!updated) return res.status(404).json({ status: 'false', message: 'Order not found' });
+
+  res.json({ status: 'true', message: `Order assigned to ${rider.full_name}`, deliveryBoy: rider });
+}));
+
+router.patch('/api/partner/orders/:id/delivery-method', ...guard, requireApprovedSubscription, asyncHandler(async (req, res) => {
+  await ensureCommerzaSchema();
+  const pmid = Number(req.user.pmid);
+  const id = parseInt(req.params.id, 10);
+  const method = String(req.body?.deliveryMethod || '').trim().toLowerCase();
+  if (!['local', 'shiprocket'].includes(method)) {
+    return res.status(400).json({ status: 'false', message: "deliveryMethod must be 'local' or 'shiprocket'" });
+  }
+
+  const updated = await db.exec(
+    DB,
+    `UPDATE commerza_orders
+     SET delivery_method = @method,
+         fulfillment_status = CASE WHEN fulfillment_status = 'pending' THEN 'accepted' ELSE fulfillment_status END,
+         updated_at = NOW()
+     WHERE id = @id AND pmid = @pmid`,
+    { id, pmid, method }
+  );
+  if (!updated) return res.status(404).json({ status: 'false', message: 'Order not found' });
+  res.json({ status: 'true', message: `Delivery method set to ${method}`, deliveryMethod: method });
 }));
 
 router.patch('/api/partner/orders/:id/status', ...guard, requireApprovedSubscription, asyncHandler(async (req, res) => {
@@ -1426,13 +1713,32 @@ router.delete('/api/partner/coupons/:id', ...guard, asyncHandler(async (req, res
   res.json({ status: 'true', message: 'Coupon deleted' });
 }));
 
-// ---- Partner Staff Users & Roles -----------------------------------------------------------
+// ---- Partner Staff Users & Delivery Boys ---------------------------------------------------
 router.get('/api/partner/users', ...guard, asyncHandler(async (req, res) => {
   await ensureCommerzaSchema();
   const pmid = Number(req.user.pmid);
+  const typeFilter = String(req.query.type || 'all').toLowerCase();
+  let where = 'u.pmid = @pmid';
+  if (typeFilter === 'delivery_boy') {
+    where += " AND (u.user_type = 'delivery_boy' OR u.role = 'delivery_boy')";
+  } else if (typeFilter === 'staff') {
+    where += " AND u.user_type != 'delivery_boy' AND u.role != 'delivery_boy'";
+  }
   const users = await db.query(
     DB,
-    'SELECT id, pmid, full_name, email, phone, role, is_active, created_at FROM commerza_portal_users WHERE pmid = @pmid ORDER BY id DESC',
+    `SELECT u.id, u.pmid, u.full_name, u.email, u.phone, u.role, u.user_type,
+            u.vehicle_type, u.vehicle_number, u.license_number, u.is_available,
+            u.is_active, u.created_at,
+            COALESCE(ord.active_orders, 0)::int AS active_orders
+     FROM commerza_portal_users u
+     LEFT JOIN LATERAL (
+       SELECT COUNT(*)::int AS active_orders
+       FROM commerza_orders o
+       WHERE o.assigned_delivery_user_id = u.id
+         AND o.fulfillment_status IN ('accepted', 'preparing', 'out_for_delivery')
+     ) ord ON TRUE
+     WHERE ${where}
+     ORDER BY u.id DESC`,
     { pmid }
   );
   res.json({ status: 'true', users });
@@ -1441,35 +1747,77 @@ router.get('/api/partner/users', ...guard, asyncHandler(async (req, res) => {
 router.post('/api/partner/users', ...guard, asyncHandler(async (req, res) => {
   await ensureCommerzaSchema();
   const pmid = Number(req.user.pmid);
-  const { fullName, email, phone = '', password, role = 'catalog_manager' } = req.body || {};
+  const {
+    fullName,
+    email,
+    phone = '',
+    password,
+    role = 'catalog_manager',
+    userType,
+    vehicleType = '',
+    vehicleNumber = '',
+    licenseNumber = '',
+  } = req.body || {};
   if (!fullName || !email || !password) {
     return res.status(400).json({ status: 'false', message: 'fullName, email, and password are required' });
   }
-  const allowedRoles = ['owner', 'catalog_manager', 'order_manager', 'viewer'];
-  if (!allowedRoles.includes(role)) {
-    return res.status(400).json({ status: 'false', message: `Invalid role. Allowed: ${allowedRoles.join(', ')}` });
-  }
+  const allowedRoles = ['owner', 'catalog_manager', 'order_manager', 'viewer', 'delivery_boy'];
+  const finalRole = allowedRoles.includes(role) ? role : 'catalog_manager';
+  const finalType = userType === 'delivery_boy' || finalRole === 'delivery_boy' ? 'delivery_boy' : 'staff';
+
   const row = await db.queryOne(
     DB,
-    `INSERT INTO commerza_portal_users (pmid, full_name, email, phone, password, role)
-     VALUES (@pmid, @name, @email, @phone, @pw, @role)
-     RETURNING id, pmid, full_name, email, phone, role, is_active, created_at`,
-    { pmid, name: String(fullName).trim(), email: String(email).trim(), phone: String(phone), pw: Encryptword(password) || password, role }
+    `INSERT INTO commerza_portal_users (
+       pmid, full_name, email, phone, password, role, user_type, vehicle_type, vehicle_number, license_number
+     ) VALUES (
+       @pmid, @name, @email, @phone, @pw, @role, @userType, @vehicleType, @vehicleNumber, @licenseNumber
+     )
+     RETURNING id, pmid, full_name, email, phone, role, user_type, vehicle_type, vehicle_number, license_number, is_available, is_active, created_at`,
+    {
+      pmid,
+      name: String(fullName).trim(),
+      email: String(email).trim(),
+      phone: String(phone),
+      pw: Encryptword(password) || password,
+      role: finalType === 'delivery_boy' ? 'delivery_boy' : finalRole,
+      userType: finalType,
+      vehicleType: String(vehicleType || ''),
+      vehicleNumber: String(vehicleNumber || ''),
+      licenseNumber: String(licenseNumber || ''),
+    }
   );
   res.status(201).json({ status: 'true', user: row });
 }));
 
 router.patch('/api/partner/users/:id', ...guard, asyncHandler(async (req, res) => {
+  await ensureCommerzaSchema();
   const pmid = Number(req.user.pmid);
   const id = parseInt(req.params.id, 10);
-  const { role, is_active } = req.body || {};
+  const { role, is_active, is_available, fullName, phone, vehicleType, vehicleNumber, licenseNumber } = req.body || {};
   const updated = await db.exec(
     DB,
     `UPDATE commerza_portal_users
      SET role = COALESCE(@role, role),
-         is_active = COALESCE(@active, is_active)
+         is_active = COALESCE(@active, is_active),
+         is_available = COALESCE(@avail, is_available),
+         full_name = COALESCE(@fullName, full_name),
+         phone = COALESCE(@phone, phone),
+         vehicle_type = COALESCE(@vehicleType, vehicle_type),
+         vehicle_number = COALESCE(@vehicleNumber, vehicle_number),
+         license_number = COALESCE(@licenseNumber, license_number)
      WHERE id = @id AND pmid = @pmid`,
-    { id, pmid, role: role ?? null, active: is_active !== undefined ? Boolean(is_active) : null }
+    {
+      id,
+      pmid,
+      role: role ?? null,
+      active: is_active !== undefined ? Boolean(is_active) : null,
+      avail: is_available !== undefined ? Boolean(is_available) : null,
+      fullName: fullName ?? null,
+      phone: phone ?? null,
+      vehicleType: vehicleType ?? null,
+      vehicleNumber: vehicleNumber ?? null,
+      licenseNumber: licenseNumber ?? null,
+    }
   );
   if (!updated) return res.status(404).json({ status: 'false', message: 'User not found' });
   res.json({ status: 'true', message: 'User updated' });
