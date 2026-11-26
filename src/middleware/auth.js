@@ -38,7 +38,7 @@ async function isSessionActive(user) {
       'select status from dbo.tbl_customerloginhistory where clhid = @lsid and plid = @plid', { lsid, plid });
     return status === 1;
   }
-  if ((user.userType === 'merchant' || user.userType === 'admin') && user.sid !== undefined && user.sid !== null) {
+  if ((user.userType === 'merchant' || user.userType === 'admin' || user.userType === 'delivery_boy') && user.sid !== undefined && user.sid !== null) {
     const sid = Number(user.sid);
     if (!Number.isInteger(sid) || sid <= 0) return false;
     const active = await db.scalar('shopping',

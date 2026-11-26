@@ -99,6 +99,8 @@ async function ensureCommerzaSchema() {
       ADD COLUMN IF NOT EXISTS assigned_delivery_phone VARCHAR(40) NOT NULL DEFAULT '';
     ALTER TABLE dbo.commerza_orders
       ADD COLUMN IF NOT EXISTS assigned_at TIMESTAMP;
+    ALTER TABLE dbo.commerza_orders
+      ADD COLUMN IF NOT EXISTS priority VARCHAR(20) NOT NULL DEFAULT 'normal';
     ALTER TABLE dbo.product_category
       ADD COLUMN IF NOT EXISTS image_url TEXT NOT NULL DEFAULT '';
     ALTER TABLE dbo.product_subcategory
