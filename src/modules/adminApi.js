@@ -1299,6 +1299,82 @@ router.get('/api/admin/members/generation', ...guard, asyncHandler(async (req, r
   res.json({ status: 'true', generations });
 }));
 
+router.get('/api/admin/members/binary-tree', ...guard, asyncHandler(async (req, res) => {
+  await ensureCommerzaSchema();
+  const pmidParam = String(req.query.pmid || '').trim();
+  let rootRow = null;
+  if (pmidParam && pmidParam !== 'all') {
+    rootRow = await db.queryOne(
+      DB,
+      'SELECT plid, pmid FROM portal_login WHERE pmid = @pmid ORDER BY plid ASC LIMIT 1',
+      { pmid: parseInt(pmidParam, 10) }
+    );
+  } else {
+    rootRow = await db.queryOne(
+      DB,
+      'SELECT plid, pmid FROM portal_login ORDER BY plid ASC LIMIT 1'
+    );
+  }
+  if (!rootRow) return res.json({ status: 'true', rootPlid: null, nodes: [], summary: { leftCount: 0, rightCount: 0, leftBv: 0, rightBv: 0 } });
+
+  const nodes = await db.query(
+    DB,
+    `WITH RECURSIVE btree AS (
+       SELECT pl.plid, pl.pmid, COALESCE(pl.parent_plid, pl.intro_plid) AS parent_plid,
+              pl.intro_plid,
+              CASE WHEN pl.communityside = 2 THEN 'Right' WHEN pl.communityside = 1 THEN 'Left' ELSE '' END AS side,
+              COALESCE(NULLIF(pl.referalcode, ''), 'CMZ-P' || pl.pmid::text) AS username,
+              CAST('' AS VARCHAR(20)) AS root_leg,
+              0 AS level
+       FROM portal_login pl
+       WHERE pl.plid = @rootPlid
+       UNION ALL
+       SELECT c.plid, c.pmid, COALESCE(c.parent_plid, c.intro_plid) AS parent_plid,
+              c.intro_plid,
+              CASE WHEN c.communityside = 2 THEN 'Right' ELSE 'Left' END AS side,
+              COALESCE(NULLIF(c.referalcode, ''), 'CMZ-P' || c.pmid::text) AS username,
+              CAST(CASE WHEN b.level = 0 THEN (CASE WHEN c.communityside = 2 THEN 'Right' ELSE 'Left' END) ELSE b.root_leg END AS VARCHAR(20)) AS root_leg,
+              b.level + 1 AS level
+       FROM portal_login c
+       JOIN btree b ON COALESCE(c.parent_plid, c.intro_plid) = b.plid
+       WHERE b.level < 8
+     )
+     SELECT bt.plid, bt.pmid, bt.parent_plid, bt.intro_plid, bt.side, bt.username, bt.root_leg, bt.level,
+            pm.companyname AS shop_name, pm.isverified, COALESCE(pm.active, true) AS active,
+            COALESCE(sp.referalcode, '') AS sponsor_username,
+            COALESCE(sub.package_name, 'Free') AS package_name,
+            COALESCE(sub.amount_paid, 0)::numeric(12,2) AS package_amount
+     FROM btree bt
+     JOIN portal_master pm ON pm.pmid = bt.pmid
+     LEFT JOIN portal_login sp ON sp.plid = bt.intro_plid
+     LEFT JOIN LATERAL (
+       SELECT package_name, amount_paid
+       FROM commerza_partner_subscriptions s
+       WHERE s.pmid = pm.pmid AND s.status = 'approved'
+       ORDER BY s.id DESC LIMIT 1
+     ) sub ON TRUE
+     ORDER BY bt.level ASC, bt.side ASC, bt.plid ASC`,
+    { rootPlid: rootRow.plid }
+  );
+
+  const descendants = nodes.filter((n) => n.level > 0);
+  const leftNodes = descendants.filter((n) => String(n.root_leg).toLowerCase() === 'left');
+  const rightNodes = descendants.filter((n) => String(n.root_leg).toLowerCase() === 'right');
+
+  res.json({
+    status: 'true',
+    rootPlid: Number(rootRow.plid),
+    rootPmid: Number(rootRow.pmid),
+    summary: {
+      leftCount: leftNodes.length,
+      rightCount: rightNodes.length,
+      leftBv: leftNodes.reduce((s, n) => s + Number(n.package_amount || 0), 0),
+      rightBv: rightNodes.reduce((s, n) => s + Number(n.package_amount || 0), 0),
+    },
+    nodes,
+  });
+}));
+
 // ---- Units & Category Attributes Master ----------------------------------------------------
 router.get('/api/admin/units', ...guard, asyncHandler(async (_req, res) => {
   await ensureCommerzaSchema();
