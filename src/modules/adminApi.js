@@ -776,7 +776,10 @@ router.get('/api/admin/categories', ...guard, asyncHandler(async (req, res) => {
   const paginate = String(req.query.paginate || '') === 'true';
   if (!paginate) {
     const [groups, categories, subcategories] = await Promise.all([
-      db.query(DB, 'SELECT gmid, groupname, COALESCE(status, 1) AS status FROM tbl_categorygroupmaster ORDER BY gmid ASC'),
+      db.query(
+        DB,
+        'SELECT gmid, groupname, COALESCE(status, 1) AS status, COALESCE(show_in_nav, true) AS show_in_nav, COALESCE(nav_order, 0) AS nav_order FROM tbl_categorygroupmaster ORDER BY COALESCE(nav_order, 0) ASC, gmid ASC'
+      ),
       db.query(
         DB,
         `SELECT c.catid, c.catname, c.catdesc, COALESCE(c.catactive, true) AS active, c.gmid, g.groupname,
@@ -820,7 +823,15 @@ router.get('/api/admin/categories', ...guard, asyncHandler(async (req, res) => {
 
   const [gTotal, groups, cTotal, categories, sTotal, subcategories] = await Promise.all([
     db.scalar(DB, `SELECT COUNT(*)::int FROM tbl_categorygroupmaster WHERE ${gConds.join(' AND ')}`, gParams),
-    db.query(DB, `SELECT gmid, groupname, COALESCE(status, 1) AS status FROM tbl_categorygroupmaster WHERE ${gConds.join(' AND ')} ORDER BY gmid ASC LIMIT @limit OFFSET @offset`, gParams),
+    db.query(
+      DB,
+      `SELECT gmid, groupname, COALESCE(status, 1) AS status, COALESCE(show_in_nav, true) AS show_in_nav, COALESCE(nav_order, 0) AS nav_order
+       FROM tbl_categorygroupmaster
+       WHERE ${gConds.join(' AND ')}
+       ORDER BY COALESCE(nav_order, 0) ASC, gmid ASC
+       LIMIT @limit OFFSET @offset`,
+      gParams
+    ),
     db.scalar(DB, `SELECT COUNT(*)::int FROM product_category c LEFT JOIN tbl_categorygroupmaster g ON g.gmid = c.gmid WHERE ${cConds.join(' AND ')}`, cParams),
     db.query(
       DB,
@@ -863,28 +874,44 @@ router.post('/api/admin/category-groups', ...guard, asyncHandler(async (req, res
   const groupname = String(req.body?.groupname || '').trim();
   if (!groupname) return res.status(400).json({ status: 'false', message: 'groupname is required' });
   const nextId = await db.scalar(DB, 'SELECT COALESCE(MAX(gmid), 0) + 1 FROM tbl_categorygroupmaster');
+  const nextOrder = await db.scalar(DB, 'SELECT COALESCE(MAX(nav_order), 0) + 1 FROM tbl_categorygroupmaster');
   await db.query(
     DB,
-    'INSERT INTO tbl_categorygroupmaster (gmid, groupname, status) VALUES (@gmid, @groupname, 1)',
-    { gmid: nextId, groupname }
+    'INSERT INTO tbl_categorygroupmaster (gmid, groupname, status, show_in_nav, nav_order) VALUES (@gmid, @groupname, 1, true, @navOrder)',
+    { gmid: nextId, groupname, navOrder: nextOrder }
   );
-  res.status(201).json({ status: 'true', group: { gmid: Number(nextId), groupname, status: 1 } });
+  res.status(201).json({ status: 'true', group: { gmid: Number(nextId), groupname, status: 1, show_in_nav: true, nav_order: Number(nextOrder) } });
 }));
 
 router.patch('/api/admin/category-groups/:gmid', ...guard, asyncHandler(async (req, res) => {
   await ensureCommerzaSchema();
   const gmid = parseInt(req.params.gmid, 10);
-  const { groupname, status } = req.body || {};
+  const { groupname, status, show_in_nav, nav_order } = req.body || {};
   const updated = await db.exec(
     DB,
     `UPDATE tbl_categorygroupmaster
      SET groupname = COALESCE(@groupname, groupname),
-         status = COALESCE(@status, status)
+         status = COALESCE(@status, status),
+         show_in_nav = COALESCE(@show_in_nav, show_in_nav),
+         nav_order = COALESCE(@nav_order, nav_order)
      WHERE gmid = @gmid`,
-    { gmid, groupname: groupname ?? null, status: status !== undefined ? Number(status) : null }
+    {
+      gmid,
+      groupname: groupname ?? null,
+      status: status !== undefined ? Number(status) : null,
+      show_in_nav: show_in_nav !== undefined ? Boolean(show_in_nav) : null,
+      nav_order: nav_order !== undefined && nav_order !== '' ? Number(nav_order) : null,
+    }
   );
   if (!updated) return res.status(404).json({ status: 'false', message: 'Group category not found' });
   res.json({ status: 'true', message: 'Group category updated' });
+}));
+
+router.post('/api/admin/category-groups/nav-visibility', ...guard, asyncHandler(async (req, res) => {
+  await ensureCommerzaSchema();
+  const showInNav = Boolean(req.body?.show_in_nav);
+  await db.exec(DB, 'UPDATE tbl_categorygroupmaster SET show_in_nav = @showInNav', { showInNav });
+  res.json({ status: 'true', message: showInNav ? 'All group categories shown in storefront header' : 'All group categories hidden from storefront header' });
 }));
 
 router.post('/api/admin/categories', ...guard, asyncHandler(async (req, res) => {

@@ -109,6 +109,30 @@ async function ensureCommerzaSchema() {
       ADD COLUMN IF NOT EXISTS parent_plid BIGINT;
     ALTER TABLE dbo.ims_subproduct
       ADD COLUMN IF NOT EXISTS color_hex VARCHAR(20) NOT NULL DEFAULT '';
+    ALTER TABLE dbo.tbl_categorygroupmaster
+      ADD COLUMN IF NOT EXISTS show_in_nav BOOLEAN NOT NULL DEFAULT TRUE;
+    ALTER TABLE dbo.tbl_categorygroupmaster
+      ADD COLUMN IF NOT EXISTS nav_order INTEGER NOT NULL DEFAULT 0;
+
+    UPDATE dbo.tbl_categorygroupmaster gm
+    SET nav_order = ranked.rn
+    FROM (
+      SELECT g.gmid,
+             ROW_NUMBER() OVER (
+               ORDER BY COALESCE(cnt.item_cnt, 0) DESC, g.gmid ASC
+             ) AS rn
+      FROM dbo.tbl_categorygroupmaster g
+      LEFT JOIN (
+        SELECT pc.gmid, COUNT(sp.sprid)::int AS item_cnt
+        FROM dbo.product_category pc
+        JOIN dbo.ims_masterproduct mp ON mp.catid = pc.catid
+        JOIN dbo.ims_subproduct sp ON sp.mprid = mp.mprid
+        WHERE COALESCE(sp.isactive, true) = true AND COALESCE(sp.isverified, 0) = 1
+        GROUP BY pc.gmid
+      ) cnt ON cnt.gmid = g.gmid
+    ) ranked
+    WHERE gm.gmid = ranked.gmid
+      AND NOT EXISTS (SELECT 1 FROM dbo.tbl_categorygroupmaster WHERE COALESCE(nav_order, 0) > 0);
 
     CREATE TABLE IF NOT EXISTS dbo.commerza_coupons (
       id SERIAL PRIMARY KEY,
