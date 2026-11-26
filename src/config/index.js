@@ -17,6 +17,8 @@ module.exports = {
     expiresIn: env.JWT_EXPIRES_IN || '7d',
     // shopping-site customers get a short-lived access token plus a refresh token (POST /api/CustomerRefreshToken)
     customerExpiresIn: env.JWT_CUSTOMER_EXPIRES_IN || '15m',
+    // partner & admin portals also use short-lived access tokens + refresh token rotation
+    portalExpiresIn: env.JWT_PORTAL_EXPIRES_IN || env.JWT_CUSTOMER_EXPIRES_IN || '15m',
     refreshExpiresDays: parseInt(env.JWT_REFRESH_EXPIRES_DAYS, 10) || 30,
   },
   pg: {

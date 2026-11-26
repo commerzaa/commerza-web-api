@@ -8,6 +8,7 @@ const { signToken, auth, requireType } = require('../middleware/auth');
 const asyncHandler = require('../middleware/asyncHandler');
 const { Encryptword } = require('../utils/crypto');
 const { ensureCommerzaSchema } = require('../lib/commerzaSchema');
+const { createSession, rotateSession, revokeSession } = require('../lib/refreshTokens');
 const shiprocket = require('../lib/shiprocket');
 
 const router = express.Router();
@@ -168,18 +169,25 @@ router.post('/api/partner/register', asyncHandler(async (req, res) => {
     return { pmid: Number(nextPmid), plid: Number(nextPlid) };
   });
 
-  const token = signToken({
-    plid: result.plid,
-    pmid: result.pmid,
-    userName: email,
-    companyName,
+  const session = await createSession({
     userType: 'merchant',
+    subjectId: result.plid,
+    subjectKey: email,
+    payload: {
+      plid: result.plid,
+      pmid: result.pmid,
+      userName: email,
+      companyName,
+      userType: 'merchant',
+    },
   });
 
   res.status(201).json({
     status: 'true',
     message: 'Shop registered successfully. Pending admin verification.',
-    token,
+    token: session.token,
+    refreshToken: session.refreshToken,
+    expiresIn: session.expiresIn,
     partner: {
       plid: result.plid,
       pmid: result.pmid,
@@ -242,20 +250,27 @@ router.post('/api/partner/login', asyncHandler(async (req, res) => {
     return res.status(403).json({ status: 'false', message: 'Account is inactive' });
   }
 
-  const token = signToken({
-    plid: Number(user.plid),
-    pmid: Number(user.pmid || 0),
-    userName: user.loginid || user.emailid,
-    companyName: user.companyname || '',
-    role: user.role || 'owner',
+  const session = await createSession({
     userType: 'merchant',
+    subjectId: Number(user.plid),
+    subjectKey: user.loginid || user.emailid || identifier,
+    payload: {
+      plid: Number(user.plid),
+      pmid: Number(user.pmid || 0),
+      userName: user.loginid || user.emailid,
+      companyName: user.companyname || '',
+      role: user.role || 'owner',
+      userType: 'merchant',
+    },
   });
 
   const subState = await getPartnerSubscriptionState(Number(user.pmid || 0));
 
   res.json({
     status: 'true',
-    token,
+    token: session.token,
+    refreshToken: session.refreshToken,
+    expiresIn: session.expiresIn,
     partner: {
       plid: Number(user.plid),
       pmid: Number(user.pmid || 0),
@@ -273,6 +288,37 @@ router.post('/api/partner/login', asyncHandler(async (req, res) => {
     },
     subscription: subState,
   });
+}));
+
+router.post('/api/partner/refresh', asyncHandler(async (req, res) => {
+  const rawToken = (req.body && (req.body.refreshToken || req.body.RefreshToken)) || '';
+  const result = await rotateSession(rawToken, 'merchant', async (t, row) => {
+    const p = typeof row.payload_json === 'string' ? JSON.parse(row.payload_json) : (row.payload_json || {});
+    const plid = Number(p.plid || row.subject_id || 0);
+    if (!plid) return 'Invalid partner session.';
+    if (p.role && p.role !== 'owner') {
+      const staff = await t.queryOne('SELECT is_active FROM commerza_portal_users WHERE id = @plid LIMIT 1', { plid });
+      if (staff && staff.is_active === false) return 'Account is inactive';
+    } else {
+      const owner = await t.queryOne('SELECT active FROM portal_login WHERE plid = @plid LIMIT 1', { plid });
+      if (owner && owner.active === false) return 'Account is inactive';
+    }
+    return null;
+  });
+  if (result.error) {
+    return res.status(401).json({ status: 'false', message: result.error, code: 'REFRESH_INVALID' });
+  }
+  res.json({
+    status: 'true',
+    token: result.token,
+    refreshToken: result.refreshToken,
+    expiresIn: result.expiresIn,
+  });
+}));
+
+router.post('/api/partner/logout', ...guard, asyncHandler(async (req, res) => {
+  await revokeSession(req.user?.sid);
+  res.json({ status: 'true', message: 'Signed out' });
 }));
 
 async function getWalletBalances(pmid) {

@@ -27,15 +27,25 @@ function extract(req) {
   return req.headers['x-access-token'] || req.query.token || null;
 }
 
-/** False when the token belongs to a customer login session that has been logged out. */
+/** False when the token belongs to a session that has been logged out. */
 async function isSessionActive(user) {
-  if (!user || user.userType !== 'customer' || user.lsid === undefined || user.lsid === null) return true;
-  const lsid = Number(user.lsid);
-  const plid = Number(user.clid !== undefined ? user.clid : user.plid);
-  if (!Number.isInteger(lsid) || !Number.isInteger(plid)) return false;
-  const status = await db.scalar('shopping',
-    'select status from dbo.tbl_customerloginhistory where clhid = @lsid and plid = @plid', { lsid, plid });
-  return status === 1;
+  if (!user) return true;
+  if (user.userType === 'customer' && user.lsid !== undefined && user.lsid !== null) {
+    const lsid = Number(user.lsid);
+    const plid = Number(user.clid !== undefined ? user.clid : user.plid);
+    if (!Number.isInteger(lsid) || !Number.isInteger(plid)) return false;
+    const status = await db.scalar('shopping',
+      'select status from dbo.tbl_customerloginhistory where clhid = @lsid and plid = @plid', { lsid, plid });
+    return status === 1;
+  }
+  if ((user.userType === 'merchant' || user.userType === 'admin') && user.sid !== undefined && user.sid !== null) {
+    const sid = Number(user.sid);
+    if (!Number.isInteger(sid) || sid <= 0) return false;
+    const active = await db.scalar('shopping',
+      'select 1 from dbo.commerza_refresh_tokens where id = @sid and revoked_at is null limit 1', { sid });
+    return active === 1;
+  }
+  return true;
 }
 
 /** Protects a route. Responds with the same {status:"false"} envelope family the legacy API used. */

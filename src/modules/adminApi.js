@@ -5,6 +5,7 @@ const { signToken, auth, requireType } = require('../middleware/auth');
 const asyncHandler = require('../middleware/asyncHandler');
 const { Encryptword } = require('../utils/crypto');
 const { ensureCommerzaSchema } = require('../lib/commerzaSchema');
+const { createSession, rotateSession, revokeSession } = require('../lib/refreshTokens');
 
 const router = express.Router();
 const DB = 'shopping';
@@ -49,18 +50,44 @@ router.post('/api/admin/login', asyncHandler(async (req, res) => {
     return res.status(401).json({ status: 'false', message: 'Invalid admin credentials' });
   }
 
-  const token = signToken({
-    plid: 0,
-    userName: email,
-    role: adminRole,
+  const session = await createSession({
     userType: 'admin',
+    subjectId: 0,
+    subjectKey: String(email).trim().toLowerCase(),
+    payload: {
+      plid: 0,
+      userName: email,
+      role: adminRole,
+      userType: 'admin',
+    },
   });
 
   res.json({
     status: 'true',
-    token,
+    token: session.token,
+    refreshToken: session.refreshToken,
+    expiresIn: session.expiresIn,
     admin: { email, name: adminName, role: adminRole },
   });
+}));
+
+router.post('/api/admin/refresh', asyncHandler(async (req, res) => {
+  const rawToken = (req.body && (req.body.refreshToken || req.body.RefreshToken)) || '';
+  const result = await rotateSession(rawToken, 'admin');
+  if (result.error) {
+    return res.status(401).json({ status: 'false', message: result.error, code: 'REFRESH_INVALID' });
+  }
+  res.json({
+    status: 'true',
+    token: result.token,
+    refreshToken: result.refreshToken,
+    expiresIn: result.expiresIn,
+  });
+}));
+
+router.post('/api/admin/logout', ...guard, asyncHandler(async (req, res) => {
+  await revokeSession(req.user?.sid);
+  res.json({ status: 'true', message: 'Signed out' });
 }));
 
 // ---- Dashboard Stats -----------------------------------------------------------------------
