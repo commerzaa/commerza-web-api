@@ -561,4 +561,79 @@ router.post('/api/delivery/orders/:id/complete', ...guard, asyncHandler(async (r
   res.json({ status: 'true', data: formatOrderForApp(row) });
 }));
 
+// ---- Customer Live Order & Rider Location Tracking -----------------------------------------
+router.get('/api/orders/:orderNumber/live-tracking', asyncHandler(async (req, res) => {
+  await ensureDeliveryColumns();
+  const key = String(req.params.orderNumber || '').trim();
+  const row = await db.queryOne(
+    DB,
+    `SELECT o.id, o.order_number, o.fulfillment_status, o.delivery_method, o.assigned_at, o.updated_at,
+            o.customer_name, o.delivery_address, o.customer_latitude, o.customer_longitude,
+            pm.companyname AS shop_name, pm.address AS shop_address,
+            sd.latitude AS shop_latitude, sd.longitude AS shop_longitude,
+            du.id AS rider_id, du.full_name AS rider_name, du.phone AS rider_phone,
+            du.vehicle_type, du.vehicle_number,
+            du.current_latitude AS rider_latitude, du.current_longitude AS rider_longitude,
+            du.location_updated_at AS rider_location_updated_at
+     FROM dbo.commerza_orders o
+     LEFT JOIN portal_master pm ON pm.pmid = o.pmid
+     LEFT JOIN dbo.commerza_shop_details sd ON sd.pmid = o.pmid
+     LEFT JOIN dbo.commerza_portal_users du ON du.id = o.assigned_delivery_user_id
+     WHERE o.order_number = @key OR CAST(o.id AS TEXT) = @key
+     LIMIT 1`,
+    { key }
+  );
+
+  if (!row) {
+    return res.status(404).json({ status: 'false', message: 'Order not found' });
+  }
+
+  const rLat = row.rider_latitude != null ? Number(row.rider_latitude) : null;
+  const rLng = row.rider_longitude != null ? Number(row.rider_longitude) : null;
+  const cLat = row.customer_latitude != null ? Number(row.customer_latitude) : null;
+  const cLng = row.customer_longitude != null ? Number(row.customer_longitude) : null;
+
+  res.json({
+    status: 'true',
+    data: {
+      orderId: String(row.id),
+      orderNumber: row.order_number,
+      fulfillmentStatus: row.fulfillment_status,
+      deliveryMethod: row.delivery_method,
+      assignedAt: row.assigned_at,
+      updatedAt: row.updated_at,
+      shop: {
+        name: row.shop_name || 'Commerzaa Store',
+        address: row.shop_address || '',
+        latitude: Number(row.shop_latitude || 12.9716),
+        longitude: Number(row.shop_longitude || 77.5946),
+      },
+      customer: {
+        name: row.customer_name || 'Customer',
+        address: row.delivery_address || '',
+        latitude: cLat,
+        longitude: cLng,
+      },
+      rider: row.rider_id
+        ? {
+            id: row.rider_id,
+            name: row.rider_name || '',
+            phone: row.rider_phone || '',
+            vehicleType: row.vehicle_type || 'bike',
+            vehicleNumber: row.vehicle_number || '',
+            latitude: rLat,
+            longitude: rLng,
+            locationUpdatedAt: row.rider_location_updated_at,
+            googleMapsUrl: (rLat != null && rLng != null)
+                ? `https://www.google.com/maps/search/?api=1&query=${rLat},${rLng}`
+                : null,
+            googleMapsDirectionsUrl: (rLat != null && rLng != null && cLat != null && cLng != null)
+                ? `https://www.google.com/maps/dir/?api=1&origin=${rLat},${rLng}&destination=${cLat},${cLng}&travelmode=two_wheeler`
+                : null,
+          }
+        : null,
+    },
+  });
+}));
+
 module.exports = router;
