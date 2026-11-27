@@ -7,8 +7,10 @@ const config = require('../config');
 const { signToken, auth, requireType } = require('../middleware/auth');
 const asyncHandler = require('../middleware/asyncHandler');
 const { Encryptword } = require('../utils/crypto');
+const { hashStaffPassword, verifyStaffPassword, checkStrongPassword } = require('../lib/staffPassword');
+const { requestPasswordReset, resetPasswordWithToken } = require('../lib/partnerPasswordReset');
 const { ensureCommerzaSchema } = require('../lib/commerzaSchema');
-const { createSession, rotateSession, revokeSession } = require('../lib/refreshTokens');
+const { createSession, rotateSession, revokeSession, ensureRefreshTokenTable } = require('../lib/refreshTokens');
 const { parsePagination, buildPagination } = require('../lib/pagination');
 const { authLimiter, refreshLimiter, portalMethodLimiter } = require('../lib/rateLimiters');
 const {
@@ -95,7 +97,7 @@ router.post('/api/partner/register', authLimiter, asyncHandler(async (req, res) 
     checkText(ownerName, 'Owner name', { required: false, max: 100 }),
     checkEmail(email, { required: true, max: 120 }),
     checkPhone(phone, { required: true }),
-    checkPassword(password, { required: true, min: 6, max: 64 }),
+    checkStrongPassword(password, { required: true, requireSpecial: true }),
     checkPincode(pincode, { required: false }),
     checkText(address, 'Address', { required: false, max: 300 }),
     checkText(areaName, 'Area name', { required: false, max: 120 }),
@@ -245,21 +247,37 @@ router.post('/api/partner/login', authLimiter, asyncHandler(async (req, res) => 
       `SELECT u.id AS plid, u.pmid, u.email AS loginid, u.password, u.email AS emailid, u.phone,
               u.full_name AS fname, ''::text AS lname, u.is_active AS active, u.role,
               pm.companyname, pm.isverified, pm.address, pm.pincode, pm.areaname
-       FROM commerza_portal_users u
+       FROM commerza_partner_staff u
        LEFT JOIN portal_master pm ON pm.pmid = u.pmid
-       WHERE lower(u.email) = lower(@id) OR u.phone = @id
+       WHERE u.user_type = 'staff'
+         AND (lower(u.email) = lower(@id) OR u.phone = @id)
        LIMIT 1`,
       { id: identifier }
     );
-    if (staff) user = staff;
+    if (staff) user = { ...staff, isStaff: true };
   }
 
   if (!user) {
     return res.status(401).json({ status: 'false', message: 'Invalid credentials' });
   }
 
-  const enc = Encryptword(password);
-  const valid = user.password === password || (enc && user.password === enc);
+  let valid;
+  if (user.isStaff) {
+    const check = verifyStaffPassword(user.password, password);
+    valid = check.valid;
+    if (valid) {
+      await db.exec(
+        DB,
+        `UPDATE commerza_partner_staff
+         SET last_login_at = NOW(), password = CASE WHEN @rehash THEN @pw ELSE password END
+         WHERE id = @id`,
+        { id: Number(user.plid), rehash: check.needsRehash, pw: check.needsRehash ? hashStaffPassword(password) : '' }
+      );
+    }
+  } else {
+    const enc = Encryptword(password);
+    valid = user.password === password || (enc && user.password === enc);
+  }
   if (!valid) {
     return res.status(401).json({ status: 'false', message: 'Invalid credentials' });
   }
@@ -271,13 +289,14 @@ router.post('/api/partner/login', authLimiter, asyncHandler(async (req, res) => 
   const session = await createSession({
     userType: 'merchant',
     subjectId: Number(user.plid),
-    subjectKey: user.loginid || user.emailid || identifier,
+    subjectKey: user.isStaff ? `staff:${Number(user.plid)}` : (user.loginid || user.emailid || identifier),
     payload: {
       plid: Number(user.plid),
       pmid: Number(user.pmid || 0),
       userName: user.loginid || user.emailid,
       companyName: user.companyname || '',
       role: user.role || 'owner',
+      isStaff: Boolean(user.isStaff),
       userType: 'merchant',
     },
   });
@@ -314,9 +333,12 @@ router.post('/api/partner/refresh', refreshLimiter, asyncHandler(async (req, res
     const p = typeof row.payload_json === 'string' ? JSON.parse(row.payload_json) : (row.payload_json || {});
     const plid = Number(p.plid || row.subject_id || 0);
     if (!plid) return 'Invalid partner session.';
-    if (p.role && p.role !== 'owner') {
-      const staff = await t.queryOne('SELECT is_active FROM commerza_portal_users WHERE id = @plid LIMIT 1', { plid });
-      if (staff && staff.is_active === false) return 'Account is inactive';
+    if (p.isStaff || (p.role && p.role !== 'owner')) {
+      const staff = await t.queryOne(
+        "SELECT is_active FROM commerza_partner_staff WHERE id = @plid AND pmid = @pmid AND user_type = 'staff' LIMIT 1",
+        { plid, pmid: Number(p.pmid || 0) }
+      );
+      if (!staff || staff.is_active === false) return 'Account is inactive';
     } else {
       const owner = await t.queryOne('SELECT active FROM portal_login WHERE plid = @plid LIMIT 1', { plid });
       if (owner && owner.active === false) return 'Account is inactive';
@@ -337,6 +359,33 @@ router.post('/api/partner/refresh', refreshLimiter, asyncHandler(async (req, res
 router.post('/api/partner/logout', ...guard, asyncHandler(async (req, res) => {
   await revokeSession(req.user?.sid);
   res.json({ status: 'true', message: 'Signed out' });
+}));
+
+// ---- Password recovery (partner owners) -----------------------------------------------------
+router.post('/api/partner/forgot-password', authLimiter, asyncHandler(async (req, res) => {
+  const email = String(req.body?.email || '').trim().toLowerCase();
+  const err = checkEmail(email, { required: true, max: 120 });
+  if (err) return res.status(400).json({ status: 'false', message: err });
+  try {
+    await requestPasswordReset(email, req.ip);
+  } catch (e) {
+    console.error('[password-reset] request failed:', e.message);
+  }
+  // Same answer whether or not the account exists, so the endpoint can't be used to discover partner emails.
+  res.json({ status: 'true', message: 'If an account exists for this email, a reset link has been sent.' });
+}));
+
+router.post('/api/partner/reset-password', authLimiter, asyncHandler(async (req, res) => {
+  const token = String(req.body?.token || '');
+  const password = String(req.body?.password || '');
+  if (!token || token.length > 200) {
+    return res.status(400).json({ status: 'false', message: 'This reset link is invalid or has expired.' });
+  }
+  const pwErr = checkStrongPassword(password, { required: true, requireSpecial: true });
+  if (pwErr) return res.status(400).json({ status: 'false', message: pwErr });
+  const failure = await resetPasswordWithToken(token, password);
+  if (failure) return res.status(400).json({ status: 'false', message: failure });
+  res.json({ status: 'true', message: 'Password updated. Please sign in with your new password.' });
 }));
 
 async function getWalletBalances(pmid) {
@@ -546,7 +595,7 @@ router.get('/api/partner/stats', ...guard, asyncHandler(async (req, res) => {
     db.queryOne(DB, 'SELECT is_profile_completed, latitude, longitude FROM commerza_shop_details WHERE pmid = @pmid', { pmid }),
     db.queryOne(DB, 'SELECT local_delivery_enabled, shiprocket_enabled FROM commerza_shop_delivery_settings WHERE pmid = @pmid', { pmid }),
     db.scalar(DB, 'SELECT COUNT(*)::int FROM commerza_coupons WHERE pmid = @pmid AND is_active = true', { pmid }),
-    db.scalar(DB, 'SELECT COUNT(*)::int FROM commerza_portal_users WHERE pmid = @pmid AND is_active = true', { pmid }),
+    db.scalar(DB, 'SELECT COUNT(*)::int FROM commerza_partner_staff WHERE pmid = @pmid AND is_active = true', { pmid }),
     db.query(
       DB,
       `SELECT id, order_number, customer_name, total_amount, delivery_method, fulfillment_status, created_at
@@ -1656,7 +1705,7 @@ router.get('/api/partner/orders', ...guard, asyncHandler(async (req, res) => {
      FROM commerza_orders o
      LEFT JOIN portal_master pm ON pm.pmid = o.pmid
      LEFT JOIN commerza_shop_details sd ON sd.pmid = o.pmid
-     LEFT JOIN commerza_portal_users du ON du.id = o.assigned_delivery_user_id AND du.pmid = o.pmid
+     LEFT JOIN commerza_partner_staff du ON du.id = o.assigned_delivery_user_id AND du.pmid = o.pmid
      LEFT JOIN LATERAL (
        SELECT * FROM commerza_shipments sh WHERE sh.order_id = o.id ORDER BY sh.id DESC LIMIT 1
      ) s ON TRUE
@@ -1693,7 +1742,7 @@ router.patch('/api/partner/orders/:id/assign-delivery', ...guard, requireApprove
   const rider = await db.queryOne(
     DB,
     `SELECT id, full_name, phone, is_active
-     FROM commerza_portal_users
+     FROM commerza_partner_staff
      WHERE id = @uid AND pmid = @pmid AND (user_type = 'delivery_boy' OR role = 'delivery_boy')`,
     { uid: parseInt(deliveryUserId, 10), pmid }
   );
@@ -1859,12 +1908,106 @@ router.post('/api/partner/orders/:id/shiprocket', ...guard, requireApprovedSubsc
 }));
 
 // ---- Coupons CRUD --------------------------------------------------------------------------
+const COUPON_CODE_RE = /^[A-Z0-9_-]{3,32}$/;
+const COUPON_SELECT = `c.*, mp.producttitle,
+       CASE
+         WHEN c.valid_until IS NOT NULL AND c.valid_until < NOW() THEN 'expired'
+         WHEN c.used_count >= c.usage_limit THEN 'exhausted'
+         WHEN c.valid_from > NOW() THEN 'scheduled'
+         WHEN c.is_active THEN 'active'
+         ELSE 'paused'
+       END AS status`;
+
+/** YYYY-MM-DD (or ISO) → Date at start of that day, or null. Returns undefined when the value is invalid. */
+function parseCouponDate(v) {
+  if (v === undefined) return undefined;
+  if (v === null || v === '') return null;
+  const s = String(v).slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return 'invalid';
+  const d = new Date(`${s}T00:00:00`);
+  return Number.isNaN(d.getTime()) ? 'invalid' : s;
+}
+
+/**
+ * Validates a coupon payload. For edits, only the supplied fields are checked, merged over `existing`.
+ * Returns { error } or { values } with normalised column values.
+ */
+async function validateCouponInput(pmid, b, existing = null) {
+  const merged = {
+    code: b.code !== undefined ? String(b.code).trim().toUpperCase() : existing?.code,
+    title: b.title !== undefined ? String(b.title).trim() : existing?.title,
+    discountType: b.discountType !== undefined ? (b.discountType === 'fixed' ? 'fixed' : 'percentage') : (existing?.discount_type || 'percentage'),
+    discountValue: b.discountValue !== undefined ? b.discountValue : existing?.discount_value,
+    minOrderAmount: b.minOrderAmount !== undefined ? b.minOrderAmount : (existing?.min_order_amount ?? 0),
+    maxDiscount: b.maxDiscount !== undefined ? b.maxDiscount : (existing?.max_discount ?? 0),
+    usageLimit: b.usageLimit !== undefined ? b.usageLimit : (existing?.usage_limit ?? 100),
+    mprid: b.mprid !== undefined ? (b.mprid ? parseInt(b.mprid, 10) : null) : (existing?.mprid ?? null),
+  };
+  const validFrom = parseCouponDate(b.validFrom);
+  const validUntil = parseCouponDate(b.validUntil);
+
+  const err = firstError([
+    !merged.code ? 'Coupon code is required' : null,
+    merged.code && !COUPON_CODE_RE.test(merged.code) ? 'Coupon code must be 3–32 letters, numbers, - or _' : null,
+    checkText(merged.title, 'Coupon title', { required: false, max: 100 }),
+    checkNumber(merged.discountValue, 'Discount value', {
+      required: true,
+      min: 0.01,
+      max: merged.discountType === 'fixed' ? 100000 : 100,
+    }),
+    checkNumber(merged.minOrderAmount, 'Min order amount', { required: false, min: 0, max: 1000000 }),
+    checkNumber(merged.maxDiscount, 'Max discount', { required: false, min: 0, max: 100000 }),
+    checkNumber(merged.usageLimit, 'Usage limit', { required: false, min: 1, max: 1000000 }),
+    validFrom === 'invalid' ? 'Valid from date is invalid' : null,
+    validUntil === 'invalid' ? 'Valid until date is invalid' : null,
+  ]);
+  if (err) return { error: err };
+
+  if (merged.discountType === 'fixed' && Number(merged.minOrderAmount) > 0 && Number(merged.discountValue) > Number(merged.minOrderAmount)) {
+    return { error: 'A fixed discount cannot be larger than the minimum order amount' };
+  }
+  if (existing && Number(merged.usageLimit) < Number(existing.used_count || 0)) {
+    return { error: `Usage limit cannot be below the ${existing.used_count} times this coupon has already been used` };
+  }
+
+  const fromStr = validFrom === undefined ? (existing?.valid_from ? new Date(existing.valid_from).toISOString().slice(0, 10) : null) : validFrom;
+  const untilStr = validUntil === undefined ? (existing?.valid_until ? new Date(existing.valid_until).toISOString().slice(0, 10) : null) : validUntil;
+  if (fromStr && untilStr && untilStr < fromStr) return { error: 'Valid until must be on or after valid from' };
+  const today = new Date().toISOString().slice(0, 10);
+  if (validUntil && validUntil !== 'invalid' && validUntil < today) return { error: 'Valid until cannot be in the past' };
+
+  if (merged.mprid) {
+    const owns = await db.queryOne(DB, 'SELECT 1 FROM ims_masterproduct WHERE mprid = @mprid AND companyid = @pmid LIMIT 1', { mprid: merged.mprid, pmid });
+    if (!owns) return { error: 'Selected product does not belong to your shop' };
+  }
+
+  return {
+    values: {
+      code: merged.code,
+      title: merged.title || `${merged.code} Offer`,
+      dType: merged.discountType,
+      dVal: Number(merged.discountValue),
+      minOrder: Number(merged.minOrderAmount || 0),
+      // A max-discount cap only makes sense for percentage coupons.
+      maxDisc: merged.discountType === 'fixed' ? 0 : Number(merged.maxDiscount || 0),
+      usageLimit: parseInt(merged.usageLimit, 10),
+      mprid: merged.mprid,
+      // valid_until is stored as the end of that day so the coupon works through the whole last day.
+      validFrom: validFrom === undefined ? undefined : validFrom,
+      validUntil: validUntil === undefined ? undefined : validUntil,
+    },
+  };
+}
+
+const couponConflict = (res) =>
+  res.status(409).json({ status: 'false', message: 'You already have a coupon with this code' });
+
 router.get('/api/partner/coupons', ...guard, asyncHandler(async (req, res) => {
   await ensureCommerzaSchema();
   const pmid = Number(req.user.pmid);
   const { page, limit, offset } = parsePagination(req.query, 25, 200);
   const search = String(req.query.search || '').trim();
-  const isActiveParam = String(req.query.isActive || '').trim().toLowerCase();
+  const statusParam = String(req.query.status || req.query.isActive || '').trim().toLowerCase();
 
   let where = 'c.pmid = @pmid';
   const params = { pmid, limit, offset };
@@ -1872,23 +2015,23 @@ router.get('/api/partner/coupons', ...guard, asyncHandler(async (req, res) => {
     where += ' AND (c.code ILIKE @q OR c.title ILIKE @q OR COALESCE(mp.producttitle, \'\') ILIKE @q)';
     params.q = `%${search}%`;
   }
-  if (isActiveParam === 'true' || isActiveParam === 'false') {
-    where += ' AND c.is_active = @isActive';
-    params.isActive = isActiveParam === 'true';
+  if (statusParam === 'true' || statusParam === 'active') {
+    where += ' AND c.is_active AND (c.valid_until IS NULL OR c.valid_until >= NOW()) AND c.used_count < c.usage_limit';
+  } else if (statusParam === 'false' || statusParam === 'paused') {
+    where += ' AND NOT c.is_active';
+  } else if (statusParam === 'expired') {
+    where += ' AND ((c.valid_until IS NOT NULL AND c.valid_until < NOW()) OR c.used_count >= c.usage_limit)';
   }
 
-  const [total, coupons] = await Promise.all([
+  const [total, coupons, summary] = await Promise.all([
     db.scalar(
       DB,
-      `SELECT COUNT(*)::int
-       FROM commerza_coupons c
-       LEFT JOIN ims_masterproduct mp ON mp.mprid = c.mprid
-       WHERE ${where}`,
+      `SELECT COUNT(*)::int FROM commerza_coupons c LEFT JOIN ims_masterproduct mp ON mp.mprid = c.mprid WHERE ${where}`,
       params
     ),
     db.query(
       DB,
-      `SELECT c.*, mp.producttitle
+      `SELECT ${COUPON_SELECT}
        FROM commerza_coupons c
        LEFT JOIN ims_masterproduct mp ON mp.mprid = c.mprid
        WHERE ${where}
@@ -1896,68 +2039,230 @@ router.get('/api/partner/coupons', ...guard, asyncHandler(async (req, res) => {
        LIMIT @limit OFFSET @offset`,
       params
     ),
+    db.queryOne(
+      DB,
+      `SELECT COUNT(*)::int AS total,
+              COUNT(*) FILTER (WHERE is_active AND (valid_until IS NULL OR valid_until >= NOW()) AND used_count < usage_limit)::int AS active,
+              COUNT(*) FILTER (WHERE NOT is_active)::int AS paused,
+              COUNT(*) FILTER (WHERE (valid_until IS NOT NULL AND valid_until < NOW()) OR used_count >= usage_limit)::int AS expired,
+              COALESCE(SUM(used_count), 0)::int AS redemptions
+       FROM commerza_coupons WHERE pmid = @pmid`,
+      { pmid }
+    ),
   ]);
-  res.json({ status: 'true', coupons, pagination: buildPagination(page, limit, total) });
+  res.json({ status: 'true', coupons, summary, pagination: buildPagination(page, limit, total) });
 }));
 
 router.post('/api/partner/coupons', ...guard, requireApprovedSubscription, asyncHandler(async (req, res) => {
   await ensureCommerzaSchema();
   const pmid = Number(req.user.pmid);
-  const b = req.body || {};
-  const code = String(b.code || '').trim().toUpperCase();
-  const validationErr = firstError([
-    checkText(code, 'Coupon code', { required: true, min: 3, max: 32 }),
-    checkText(b.title, 'Coupon title', { required: false, max: 100 }),
-    checkNumber(b.discountValue, 'Discount value', { required: true, min: 0.01, max: b.discountType === 'fixed' ? 100000 : 100 }),
-    checkNumber(b.minOrderAmount ?? 0, 'Min order amount', { required: false, min: 0, max: 1000000 }),
-    checkNumber(b.maxDiscount ?? 0, 'Max discount', { required: false, min: 0, max: 100000 }),
-    checkNumber(b.usageLimit ?? 100, 'Usage limit', { required: false, min: 1, max: 1000000 }),
-  ]);
-  if (validationErr) {
-    return res.status(400).json({ status: 'false', message: validationErr });
+  const { error, values } = await validateCouponInput(pmid, req.body || {});
+  if (error) return res.status(400).json({ status: 'false', message: error });
+  try {
+    const inserted = await db.queryOne(
+      DB,
+      `INSERT INTO commerza_coupons (
+         pmid, mprid, code, title, discount_type, discount_value,
+         min_order_amount, max_discount, usage_limit, valid_from, valid_until, is_active
+       ) VALUES (
+         @pmid, @mprid, @code, @title, @dType, @dVal,
+         @minOrder, @maxDisc, @usageLimit,
+         COALESCE(@validFrom::date::timestamp, NOW()),
+         CASE WHEN @validUntil::date IS NULL THEN NULL ELSE @validUntil::date + interval '1 day' - interval '1 second' END,
+         @isActive
+       ) RETURNING id`,
+      { pmid, ...values, validFrom: values.validFrom || null, validUntil: values.validUntil || null, isActive: req.body?.isActive !== false }
+    );
+    const coupon = await db.queryOne(
+      DB,
+      `SELECT ${COUPON_SELECT} FROM commerza_coupons c LEFT JOIN ims_masterproduct mp ON mp.mprid = c.mprid WHERE c.id = @id`,
+      { id: inserted.id }
+    );
+    res.status(201).json({ status: 'true', message: 'Coupon created', coupon });
+  } catch (e) {
+    if (e && e.code === '23505') return couponConflict(res);
+    throw e;
   }
-  const row = await db.queryOne(
-    DB,
-    `INSERT INTO commerza_coupons (
-       pmid, mprid, code, title, discount_type, discount_value,
-       min_order_amount, max_discount, usage_limit, valid_until, is_active
-     ) VALUES (
-       @pmid, @mprid, @code, @title, @dType, @dVal,
-       @minOrder, @maxDisc, @limit, @validUntil, true
-     ) RETURNING *`,
-    {
-      pmid,
-      mprid: b.mprid ? parseInt(b.mprid, 10) : null,
-      code,
-      title: String(b.title || `${code} Offer`),
-      dType: b.discountType === 'fixed' ? 'fixed' : 'percentage',
-      dVal: Number(b.discountValue),
-      minOrder: Number(b.minOrderAmount ?? 0),
-      maxDisc: Number(b.maxDiscount ?? 0),
-      limit: parseInt(b.usageLimit ?? 100, 10),
-      validUntil: b.validUntil || null,
-    }
-  );
-  res.status(201).json({ status: 'true', coupon: row });
 }));
 
 router.patch('/api/partner/coupons/:id', ...guard, asyncHandler(async (req, res) => {
+  await ensureCommerzaSchema();
   const pmid = Number(req.user.pmid);
   const id = parseInt(req.params.id, 10);
-  const active = Boolean(req.body?.is_active);
-  const updated = await db.exec(DB, 'UPDATE commerza_coupons SET is_active = @active WHERE id = @id AND pmid = @pmid', { id, pmid, active });
-  if (!updated) return res.status(404).json({ status: 'false', message: 'Coupon not found' });
-  res.json({ status: 'true', message: 'Coupon updated' });
+  if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ status: 'false', message: 'Invalid coupon id' });
+
+  const existing = await db.queryOne(DB, 'SELECT * FROM commerza_coupons WHERE id = @id AND pmid = @pmid LIMIT 1', { id, pmid });
+  if (!existing) return res.status(404).json({ status: 'false', message: 'Coupon not found' });
+
+  const b = req.body || {};
+  const editsFields = ['code', 'title', 'discountType', 'discountValue', 'minOrderAmount', 'maxDiscount', 'usageLimit', 'mprid', 'validFrom', 'validUntil']
+    .some((k) => b[k] !== undefined);
+
+  let values = null;
+  if (editsFields) {
+    const result = await validateCouponInput(pmid, b, existing);
+    if (result.error) return res.status(400).json({ status: 'false', message: result.error });
+    values = result.values;
+  }
+
+  // Toggle-only requests ({ is_active }) skip field validation.
+  const active = b.is_active !== undefined ? Boolean(b.is_active) : (b.isActive !== undefined ? Boolean(b.isActive) : null);
+  try {
+    await db.exec(
+      DB,
+      `UPDATE commerza_coupons SET
+         code = COALESCE(@code, code),
+         title = COALESCE(@title, title),
+         discount_type = COALESCE(@dType, discount_type),
+         discount_value = COALESCE(@dVal, discount_value),
+         min_order_amount = COALESCE(@minOrder, min_order_amount),
+         max_discount = COALESCE(@maxDisc, max_discount),
+         usage_limit = COALESCE(@usageLimit, usage_limit),
+         mprid = CASE WHEN @setMprid THEN @mprid ELSE mprid END,
+         valid_from = CASE WHEN @setFrom THEN COALESCE(@validFrom::date::timestamp, valid_from) ELSE valid_from END,
+         valid_until = CASE WHEN @setUntil
+                         THEN CASE WHEN @validUntil::date IS NULL THEN NULL ELSE @validUntil::date + interval '1 day' - interval '1 second' END
+                         ELSE valid_until END,
+         is_active = COALESCE(@active, is_active),
+         updated_at = NOW()
+       WHERE id = @id AND pmid = @pmid`,
+      {
+        id,
+        pmid,
+        code: values ? values.code : null,
+        title: values ? values.title : null,
+        dType: values ? values.dType : null,
+        dVal: values ? values.dVal : null,
+        minOrder: values ? values.minOrder : null,
+        maxDisc: values ? values.maxDisc : null,
+        usageLimit: values ? values.usageLimit : null,
+        setMprid: Boolean(values) && b.mprid !== undefined,
+        mprid: values ? values.mprid : null,
+        setFrom: Boolean(values) && values.validFrom !== undefined,
+        validFrom: values && values.validFrom ? values.validFrom : null,
+        setUntil: Boolean(values) && values.validUntil !== undefined,
+        validUntil: values && values.validUntil ? values.validUntil : null,
+        active,
+      }
+    );
+  } catch (e) {
+    if (e && e.code === '23505') return couponConflict(res);
+    throw e;
+  }
+  const coupon = await db.queryOne(
+    DB,
+    `SELECT ${COUPON_SELECT} FROM commerza_coupons c LEFT JOIN ims_masterproduct mp ON mp.mprid = c.mprid WHERE c.id = @id`,
+    { id }
+  );
+  res.json({ status: 'true', message: 'Coupon updated', coupon });
 }));
 
 router.delete('/api/partner/coupons/:id', ...guard, asyncHandler(async (req, res) => {
   const pmid = Number(req.user.pmid);
   const id = parseInt(req.params.id, 10);
-  await db.exec(DB, 'DELETE FROM commerza_coupons WHERE id = @id AND pmid = @pmid', { id, pmid });
+  if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ status: 'false', message: 'Invalid coupon id' });
+  const removed = await db.exec(DB, 'DELETE FROM commerza_coupons WHERE id = @id AND pmid = @pmid', { id, pmid });
+  if (!removed) return res.status(404).json({ status: 'false', message: 'Coupon not found' });
   res.json({ status: 'true', message: 'Coupon deleted' });
 }));
 
-// ---- Partner Staff Users & Delivery Boys ---------------------------------------------------
+// ---- Partner Staff Users & Delivery Boys (dbo.commerza_partner_staff) ----------------------
+const STAFF_ROLES = ['owner', 'catalog_manager', 'order_manager', 'viewer'];
+const VEHICLE_TYPES = ['Bike', 'Scooter', 'Van', 'Bicycle'];
+const TEAM_COLUMNS = `u.id, u.pmid, u.full_name, u.email, u.phone, u.role, u.user_type,
+              u.vehicle_type, u.vehicle_number, u.license_number, u.is_available,
+              u.is_active, u.last_login_at, u.created_by_name, u.updated_by_name, u.created_at, u.updated_at`;
+
+/** Digits only; strips a leading +91 / 91 / 0 so "+91 98765 43210" is stored as "9876543210". */
+const normalizeTeamPhone = (v) => {
+  let d = String(v ?? '').replace(/\D/g, '');
+  if (d.length === 12 && d.startsWith('91')) d = d.slice(2);
+  else if (d.length === 11 && d.startsWith('0')) d = d.slice(1);
+  return d;
+};
+/** Phone number: exactly 10 digits. */
+function checkTeamMobile(v, { required }) {
+  if (v === undefined || v === null || String(v).trim() === '') return required ? 'Phone number is required' : null;
+  return /^\d{10}$/.test(normalizeTeamPhone(v)) ? null : 'Phone number must be exactly 10 digits';
+}
+const normalizeCode = (v) => String(v ?? '').trim().toUpperCase().replace(/\s+/g, ' ');
+
+/** Only the partner owner (or a staff member with the 'owner' role) may add, edit or remove team members. */
+function requireTeamManager(req, res, next) {
+  if (req.user?.isStaff && req.user?.role !== 'owner') {
+    return res.status(403).json({ status: 'false', message: 'Only the shop owner can manage staff and delivery boys' });
+  }
+  return next();
+}
+
+function actorName(req) {
+  return String(req.user?.userName || req.user?.companyName || '').slice(0, 150);
+}
+
+/** Email / phone must not belong to any partner login or to another team member. */
+async function findTeamIdentityConflict({ email, phone, excludeId = 0 }) {
+  if (email) {
+    const partner = await db.queryOne(
+      DB,
+      'SELECT 1 FROM portal_login WHERE lower(emailid) = lower(@email) OR lower(loginid) = lower(@email) LIMIT 1',
+      { email }
+    );
+    if (partner) return 'This email belongs to a partner account. Use the staff member\'s own email.';
+    const member = await db.queryOne(
+      DB,
+      'SELECT 1 FROM commerza_partner_staff WHERE lower(email) = lower(@email) AND id <> @excludeId LIMIT 1',
+      { email, excludeId }
+    );
+    if (member) return 'This email is already registered to another staff member or delivery boy.';
+  }
+  if (phone) {
+    const partner = await db.queryOne(DB, 'SELECT 1 FROM portal_login WHERE phone = @phone LIMIT 1', { phone });
+    if (partner) return 'This phone number belongs to a partner account. Use the staff member\'s own number.';
+    const member = await db.queryOne(
+      DB,
+      'SELECT 1 FROM commerza_partner_staff WHERE phone = @phone AND id <> @excludeId LIMIT 1',
+      { phone, excludeId }
+    );
+    if (member) return 'This phone number is already registered to another staff member or delivery boy.';
+  }
+  return null;
+}
+
+/** Revokes every open session (partner-portal staff login and delivery app) of a team member. */
+async function revokeTeamMemberSessions(member) {
+  await ensureRefreshTokenTable();
+  await db.exec(
+    DB,
+    `UPDATE dbo.commerza_refresh_tokens SET revoked_at = NOW()
+     WHERE revoked_at IS NULL
+       AND ((user_type = 'merchant' AND subject_key = @staffKey)
+         OR (user_type = 'delivery_boy' AND subject_id = @id))`,
+    { id: Number(member.id), staffKey: `staff:${Number(member.id)}` }
+  );
+}
+
+function validateTeamFields(b, { isEdit, userType }) {
+  const checks = [
+    checkText(b.fullName, 'Full name', { required: !isEdit, min: 2, max: 150 }),
+    checkEmail(b.email, { required: !isEdit, max: 150 }),
+    checkTeamMobile(b.phone, { required: !isEdit }),
+    checkStrongPassword(b.password, { required: !isEdit }),
+  ];
+  if (isEdit && b.fullName !== undefined && !String(b.fullName).trim()) checks.push('Full name cannot be empty');
+  if (isEdit && b.email !== undefined && !String(b.email).trim()) checks.push('Email cannot be empty');
+  if (isEdit && b.phone !== undefined && !normalizeTeamPhone(b.phone)) checks.push('Phone number cannot be empty');
+  if (userType === 'delivery_boy') {
+    if (b.vehicleType !== undefined && b.vehicleType !== '' && !VEHICLE_TYPES.includes(b.vehicleType)) {
+      checks.push('Invalid vehicle type');
+    }
+    checks.push(checkOptionalRegex(b.vehicleNumber, 'Vehicle number', /^[A-Z0-9][A-Z0-9 -]{3,19}$/, 'e.g. KL-07-AB-1234'));
+    checks.push(checkOptionalRegex(b.licenseNumber, 'License number', /^[A-Z0-9][A-Z0-9 -]{4,29}$/, 'letters, numbers and dashes'));
+  } else if (b.role !== undefined && !STAFF_ROLES.includes(b.role)) {
+    checks.push('Invalid staff role');
+  }
+  return firstError(checks);
+}
+
 router.get('/api/partner/users', ...guard, asyncHandler(async (req, res) => {
   await ensureCommerzaSchema();
   const pmid = Number(req.user.pmid);
@@ -1968,24 +2273,22 @@ router.get('/api/partner/users', ...guard, asyncHandler(async (req, res) => {
   let where = 'u.pmid = @pmid';
   const params = { pmid, limit, offset };
   if (typeFilter === 'delivery_boy') {
-    where += " AND (u.user_type = 'delivery_boy' OR u.role = 'delivery_boy')";
+    where += " AND u.user_type = 'delivery_boy'";
   } else if (typeFilter === 'staff') {
-    where += " AND u.user_type != 'delivery_boy' AND u.role != 'delivery_boy'";
+    where += " AND u.user_type = 'staff'";
   }
   if (search) {
-    where += ' AND (u.full_name ILIKE @q OR u.email ILIKE @q OR u.phone ILIKE @q OR COALESCE(u.vehicle_number, \'\') ILIKE @q)';
+    where += ' AND (u.full_name ILIKE @q OR u.email ILIKE @q OR u.phone ILIKE @q OR u.vehicle_number ILIKE @q)';
     params.q = `%${search}%`;
   }
 
   const [total, users] = await Promise.all([
-    db.scalar(DB, `SELECT COUNT(*)::int FROM commerza_portal_users u WHERE ${where}`, params),
+    db.scalar(DB, `SELECT COUNT(*)::int FROM commerza_partner_staff u WHERE ${where}`, params),
     db.query(
       DB,
-      `SELECT u.id, u.pmid, u.full_name, u.email, u.phone, u.role, u.user_type,
-              u.vehicle_type, u.vehicle_number, u.license_number, u.is_available,
-              u.is_active, u.created_at,
+      `SELECT ${TEAM_COLUMNS},
               COALESCE(ord.active_orders, 0)::int AS active_orders
-       FROM commerza_portal_users u
+       FROM commerza_partner_staff u
        LEFT JOIN LATERAL (
          SELECT COUNT(*)::int AS active_orders
          FROM commerza_orders o
@@ -1998,92 +2301,200 @@ router.get('/api/partner/users', ...guard, asyncHandler(async (req, res) => {
       params
     ),
   ]);
-  res.json({ status: 'true', users, pagination: buildPagination(page, limit, total) });
+  res.json({
+    status: 'true',
+    users,
+    canManage: !(req.user?.isStaff && req.user?.role !== 'owner'),
+    pagination: buildPagination(page, limit, total),
+  });
 }));
 
-router.post('/api/partner/users', ...guard, asyncHandler(async (req, res) => {
+router.post('/api/partner/users', ...guard, requireTeamManager, asyncHandler(async (req, res) => {
   await ensureCommerzaSchema();
   const pmid = Number(req.user.pmid);
-  const {
-    fullName,
-    email,
-    phone = '',
-    password,
-    role = 'catalog_manager',
-    userType,
-    vehicleType = '',
-    vehicleNumber = '',
-    licenseNumber = '',
-  } = req.body || {};
-  if (!fullName || !email || !password) {
-    return res.status(400).json({ status: 'false', message: 'fullName, email, and password are required' });
+  const b = req.body || {};
+  const userType = b.userType === 'delivery_boy' ? 'delivery_boy' : 'staff';
+  const input = {
+    ...b,
+    vehicleNumber: normalizeCode(b.vehicleNumber),
+    licenseNumber: normalizeCode(b.licenseNumber),
+  };
+  const err = validateTeamFields(input, { isEdit: false, userType });
+  if (err) return res.status(400).json({ status: 'false', message: err });
+
+  const email = String(b.email).trim().toLowerCase();
+  const phone = normalizeTeamPhone(b.phone);
+  const conflict = await findTeamIdentityConflict({ email, phone });
+  if (conflict) return res.status(409).json({ status: 'false', message: conflict });
+
+  const role = userType === 'delivery_boy' ? 'delivery_boy' : (STAFF_ROLES.includes(b.role) ? b.role : 'catalog_manager');
+  try {
+    const row = await db.queryOne(
+      DB,
+      `INSERT INTO commerza_partner_staff AS u (
+         pmid, user_type, role, full_name, email, phone, password,
+         vehicle_type, vehicle_number, license_number,
+         created_by_plid, created_by_name, updated_by_plid, updated_by_name
+       ) VALUES (
+         @pmid, @userType, @role, @name, @email, @phone, @pw,
+         @vehicleType, @vehicleNumber, @licenseNumber,
+         @actorId, @actorName, @actorId, @actorName
+       )
+       RETURNING ${TEAM_COLUMNS}`,
+      {
+        pmid,
+        userType,
+        role,
+        name: String(b.fullName).trim(),
+        email,
+        phone,
+        pw: hashStaffPassword(b.password),
+        vehicleType: userType === 'delivery_boy' ? (VEHICLE_TYPES.includes(b.vehicleType) ? b.vehicleType : 'Bike') : '',
+        vehicleNumber: userType === 'delivery_boy' ? input.vehicleNumber : '',
+        licenseNumber: userType === 'delivery_boy' ? input.licenseNumber : '',
+        actorId: Number(req.user.plid || 0),
+        actorName: actorName(req),
+      }
+    );
+    res.status(201).json({ status: 'true', user: { ...row, active_orders: 0 } });
+  } catch (e) {
+    if (e && e.code === '23505') {
+      return res.status(409).json({ status: 'false', message: 'Email or phone is already registered' });
+    }
+    throw e;
   }
-  const allowedRoles = ['owner', 'catalog_manager', 'order_manager', 'viewer', 'delivery_boy'];
-  const finalRole = allowedRoles.includes(role) ? role : 'catalog_manager';
-  const finalType = userType === 'delivery_boy' || finalRole === 'delivery_boy' ? 'delivery_boy' : 'staff';
-
-  const row = await db.queryOne(
-    DB,
-    `INSERT INTO commerza_portal_users (
-       pmid, full_name, email, phone, password, role, user_type, vehicle_type, vehicle_number, license_number
-     ) VALUES (
-       @pmid, @name, @email, @phone, @pw, @role, @userType, @vehicleType, @vehicleNumber, @licenseNumber
-     )
-     RETURNING id, pmid, full_name, email, phone, role, user_type, vehicle_type, vehicle_number, license_number, is_available, is_active, created_at`,
-    {
-      pmid,
-      name: String(fullName).trim(),
-      email: String(email).trim(),
-      phone: String(phone),
-      pw: Encryptword(password) || password,
-      role: finalType === 'delivery_boy' ? 'delivery_boy' : finalRole,
-      userType: finalType,
-      vehicleType: String(vehicleType || ''),
-      vehicleNumber: String(vehicleNumber || ''),
-      licenseNumber: String(licenseNumber || ''),
-    }
-  );
-  res.status(201).json({ status: 'true', user: row });
 }));
 
-router.patch('/api/partner/users/:id', ...guard, asyncHandler(async (req, res) => {
+router.patch('/api/partner/users/:id', ...guard, requireTeamManager, asyncHandler(async (req, res) => {
   await ensureCommerzaSchema();
   const pmid = Number(req.user.pmid);
   const id = parseInt(req.params.id, 10);
-  const { role, is_active, is_available, fullName, phone, vehicleType, vehicleNumber, licenseNumber } = req.body || {};
-  const updated = await db.exec(
+  if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ status: 'false', message: 'Invalid user id' });
+
+  const existing = await db.queryOne(
     DB,
-    `UPDATE commerza_portal_users
-     SET role = COALESCE(@role, role),
-         is_active = COALESCE(@active, is_active),
-         is_available = COALESCE(@avail, is_available),
-         full_name = COALESCE(@fullName, full_name),
-         phone = COALESCE(@phone, phone),
-         vehicle_type = COALESCE(@vehicleType, vehicle_type),
-         vehicle_number = COALESCE(@vehicleNumber, vehicle_number),
-         license_number = COALESCE(@licenseNumber, license_number)
-     WHERE id = @id AND pmid = @pmid`,
-    {
-      id,
-      pmid,
-      role: role ?? null,
-      active: is_active !== undefined ? Boolean(is_active) : null,
-      avail: is_available !== undefined ? Boolean(is_available) : null,
-      fullName: fullName ?? null,
-      phone: phone ?? null,
-      vehicleType: vehicleType ?? null,
-      vehicleNumber: vehicleNumber ?? null,
-      licenseNumber: licenseNumber ?? null,
-    }
+    'SELECT id, user_type, email, phone FROM commerza_partner_staff WHERE id = @id AND pmid = @pmid LIMIT 1',
+    { id, pmid }
   );
-  if (!updated) return res.status(404).json({ status: 'false', message: 'User not found' });
-  res.json({ status: 'true', message: 'User updated' });
+  if (!existing) return res.status(404).json({ status: 'false', message: 'User not found' });
+
+  const b = req.body || {};
+  const isSelf = Boolean(req.user?.isStaff) && Number(req.user.plid) === id;
+  if (isSelf && (b.role !== undefined || b.is_active !== undefined)) {
+    return res.status(400).json({ status: 'false', message: 'You cannot change your own role or status' });
+  }
+
+  const input = {
+    ...b,
+    vehicleNumber: b.vehicleNumber === undefined ? undefined : normalizeCode(b.vehicleNumber),
+    licenseNumber: b.licenseNumber === undefined ? undefined : normalizeCode(b.licenseNumber),
+    password: b.password ? b.password : undefined,
+  };
+  const err = validateTeamFields(input, { isEdit: true, userType: existing.user_type });
+  if (err) return res.status(400).json({ status: 'false', message: err });
+
+  const email = b.email !== undefined ? String(b.email).trim().toLowerCase() : null;
+  const phone = b.phone !== undefined ? normalizeTeamPhone(b.phone) : null;
+  const conflict = await findTeamIdentityConflict({
+    email: email && email !== String(existing.email).toLowerCase() ? email : null,
+    phone: phone && phone !== existing.phone ? phone : null,
+    excludeId: id,
+  });
+  if (conflict) return res.status(409).json({ status: 'false', message: conflict });
+
+  const isRider = existing.user_type === 'delivery_boy';
+  const newPassword = input.password ? hashStaffPassword(input.password) : null;
+  const deactivate = b.is_active !== undefined && !b.is_active;
+
+  let row;
+  try {
+    row = await db.queryOne(
+      DB,
+      `UPDATE commerza_partner_staff u
+       SET role = COALESCE(@role, role),
+           is_active = COALESCE(@active, is_active),
+           is_available = COALESCE(@avail, is_available),
+           full_name = COALESCE(@fullName, full_name),
+           email = COALESCE(@email, email),
+           phone = COALESCE(@phone, phone),
+           password = COALESCE(@pw, password),
+           password_changed_at = CASE WHEN @pw IS NULL THEN password_changed_at ELSE NOW() END,
+           vehicle_type = COALESCE(@vehicleType, vehicle_type),
+           vehicle_number = COALESCE(@vehicleNumber, vehicle_number),
+           license_number = COALESCE(@licenseNumber, license_number),
+           updated_by_plid = @actorId,
+           updated_by_name = @actorName,
+           updated_at = NOW()
+       WHERE id = @id AND pmid = @pmid
+       RETURNING ${TEAM_COLUMNS}`,
+      {
+        id,
+        pmid,
+        role: !isRider && b.role !== undefined ? b.role : null,
+        active: b.is_active !== undefined ? Boolean(b.is_active) : null,
+        avail: isRider && b.is_available !== undefined ? Boolean(b.is_available) : null,
+        fullName: b.fullName !== undefined ? String(b.fullName).trim() : null,
+        email,
+        phone,
+        pw: newPassword,
+        vehicleType: isRider && b.vehicleType ? b.vehicleType : null,
+        vehicleNumber: isRider && input.vehicleNumber !== undefined ? input.vehicleNumber : null,
+        licenseNumber: isRider && input.licenseNumber !== undefined ? input.licenseNumber : null,
+        actorId: Number(req.user.plid || 0),
+        actorName: actorName(req),
+      }
+    );
+  } catch (e) {
+    if (e && e.code === '23505') {
+      return res.status(409).json({ status: 'false', message: 'Email or phone is already registered' });
+    }
+    throw e;
+  }
+  if (!row) return res.status(404).json({ status: 'false', message: 'User not found' });
+
+  // Changing credentials or disabling the account signs the member out everywhere.
+  const credentialsChanged = Boolean(newPassword)
+    || (email && email !== String(existing.email).toLowerCase())
+    || (phone && phone !== existing.phone);
+  if (deactivate || credentialsChanged) await revokeTeamMemberSessions(row);
+
+  res.json({ status: 'true', message: 'User updated', user: row });
 }));
 
-router.delete('/api/partner/users/:id', ...guard, asyncHandler(async (req, res) => {
+router.delete('/api/partner/users/:id', ...guard, requireTeamManager, asyncHandler(async (req, res) => {
+  await ensureCommerzaSchema();
   const pmid = Number(req.user.pmid);
   const id = parseInt(req.params.id, 10);
-  await db.exec(DB, 'DELETE FROM commerza_portal_users WHERE id = @id AND pmid = @pmid', { id, pmid });
+  if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ status: 'false', message: 'Invalid user id' });
+  if (req.user?.isStaff && Number(req.user.plid) === id) {
+    return res.status(400).json({ status: 'false', message: 'You cannot remove your own account' });
+  }
+
+  const member = await db.queryOne(
+    DB,
+    'SELECT id, user_type FROM commerza_partner_staff WHERE id = @id AND pmid = @pmid LIMIT 1',
+    { id, pmid }
+  );
+  if (!member) return res.status(404).json({ status: 'false', message: 'User not found' });
+
+  if (member.user_type === 'delivery_boy') {
+    const active = await db.scalar(
+      DB,
+      `SELECT COUNT(*)::int FROM commerza_orders
+       WHERE pmid = @pmid AND assigned_delivery_user_id = @id
+         AND fulfillment_status IN ('pending', 'accepted', 'preparing', 'out_for_delivery')`,
+      { id, pmid }
+    );
+    if (Number(active) > 0) {
+      return res.status(409).json({
+        status: 'false',
+        message: `This delivery boy has ${active} active order(s). Reassign them or disable the account instead.`,
+      });
+    }
+  }
+
+  await revokeTeamMemberSessions(member);
+  await db.exec(DB, 'DELETE FROM commerza_partner_staff WHERE id = @id AND pmid = @pmid', { id, pmid });
   res.json({ status: 'true', message: 'User removed' });
 }));
 

@@ -3,7 +3,7 @@ const express = require('express');
 const db = require('../db');
 const { auth, requireType } = require('../middleware/auth');
 const asyncHandler = require('../middleware/asyncHandler');
-const { Encryptword } = require('../utils/crypto');
+const { hashStaffPassword, verifyStaffPassword } = require('../lib/staffPassword');
 const { ensureCommerzaSchema } = require('../lib/commerzaSchema');
 const { createSession, rotateSession, revokeSession } = require('../lib/refreshTokens');
 
@@ -17,7 +17,7 @@ async function ensureDeliveryColumns() {
   if (deliveryColumnsEnsured) return;
   await db.query(
     DB,
-    `ALTER TABLE dbo.commerza_portal_users
+    `ALTER TABLE dbo.commerza_partner_staff
        ADD COLUMN IF NOT EXISTS current_latitude DOUBLE PRECISION,
        ADD COLUMN IF NOT EXISTS current_longitude DOUBLE PRECISION,
        ADD COLUMN IF NOT EXISTS location_updated_at TIMESTAMP`
@@ -121,7 +121,7 @@ router.post('/api/delivery/auth/login', asyncHandler(async (req, res) => {
             u.vehicle_type, u.vehicle_number, u.license_number, u.is_available, u.is_active, u.created_at,
             pm.companyname AS hub_name, pm.address AS hub_address, pm.mobileno AS hub_phone,
             (SELECT COUNT(*)::int FROM dbo.commerza_orders o WHERE o.assigned_delivery_user_id = u.id AND o.fulfillment_status = 'delivered') AS total_deliveries
-     FROM dbo.commerza_portal_users u
+     FROM dbo.commerza_partner_staff u
      LEFT JOIN portal_master pm ON pm.pmid = u.pmid
      WHERE (u.user_type = 'delivery_boy' OR u.role = 'delivery_boy')
        AND (lower(u.email) = lower(@id) OR u.phone = @id)
@@ -136,10 +136,17 @@ router.post('/api/delivery/auth/login', asyncHandler(async (req, res) => {
     return res.status(403).json({ status: 'false', message: 'Your delivery partner account is disabled' });
   }
 
-  const encPw = Encryptword(rawPw) || rawPw;
-  if (user.password !== encPw && user.password !== rawPw) {
+  const pwCheck = verifyStaffPassword(user.password, rawPw);
+  if (!pwCheck.valid) {
     return res.status(401).json({ status: 'false', message: 'Invalid delivery partner credentials' });
   }
+  await db.exec(
+    DB,
+    `UPDATE dbo.commerza_partner_staff
+     SET last_login_at = NOW(), password = CASE WHEN @rehash THEN @pw ELSE password END
+     WHERE id = @id`,
+    { id: Number(user.id), rehash: pwCheck.needsRehash, pw: pwCheck.needsRehash ? hashStaffPassword(rawPw) : '' }
+  );
 
   const session = await createSession({
     userType: 'delivery_boy',
@@ -184,7 +191,7 @@ router.post('/api/delivery/auth/refresh', asyncHandler(async (req, res) => {
     const p = typeof row.payload_json === 'string' ? JSON.parse(row.payload_json) : (row.payload_json || {});
     const uid = Number(p.uid || row.subject_id || 0);
     if (!uid) return 'Invalid delivery session.';
-    const u = await t.queryOne('SELECT is_active FROM dbo.commerza_portal_users WHERE id = @uid LIMIT 1', { uid });
+    const u = await t.queryOne('SELECT is_active FROM dbo.commerza_partner_staff WHERE id = @uid LIMIT 1', { uid });
     if (!u || u.is_active === false) return 'Account is inactive.';
     return null;
   });
@@ -213,7 +220,7 @@ router.get('/api/delivery/profile', ...guard, asyncHandler(async (req, res) => {
             u.license_number, u.is_available, u.is_active, u.created_at,
             pm.companyname AS hub_name, pm.address AS hub_address, pm.mobileno AS hub_phone,
             (SELECT COUNT(*)::int FROM dbo.commerza_orders o WHERE o.assigned_delivery_user_id = u.id AND o.fulfillment_status = 'delivered') AS total_deliveries
-     FROM dbo.commerza_portal_users u
+     FROM dbo.commerza_partner_staff u
      LEFT JOIN portal_master pm ON pm.pmid = u.pmid
      WHERE u.id = @uid LIMIT 1`,
     { uid: req.user.uid }
@@ -245,7 +252,7 @@ router.patch('/api/delivery/availability', ...guard, asyncHandler(async (req, re
   const isAvailable = Boolean(req.body?.isAvailable);
   await db.exec(
     DB,
-    'UPDATE dbo.commerza_portal_users SET is_available = @avail WHERE id = @uid',
+    'UPDATE dbo.commerza_partner_staff SET is_available = @avail WHERE id = @uid',
     { avail: isAvailable, uid: req.user.uid }
   );
   res.json({ status: 'true', isAvailable });
@@ -261,7 +268,7 @@ router.post('/api/delivery/location', ...guard, asyncHandler(async (req, res) =>
   }
   await db.exec(
     DB,
-    `UPDATE dbo.commerza_portal_users
+    `UPDATE dbo.commerza_partner_staff
      SET current_latitude = @lat, current_longitude = @lng, location_updated_at = NOW()
      WHERE id = @uid`,
     { lat, lng, uid: req.user.uid }
@@ -476,7 +483,7 @@ router.post('/api/delivery/orders/:id/accept', ...guard, asyncHandler(async (req
   const id = parseInt(req.params.id, 10);
   const rider = await db.queryOne(
     DB,
-    'SELECT full_name, phone FROM dbo.commerza_portal_users WHERE id = @uid LIMIT 1',
+    'SELECT full_name, phone FROM dbo.commerza_partner_staff WHERE id = @uid LIMIT 1',
     { uid: req.user.uid }
   );
   const updated = await db.exec(
